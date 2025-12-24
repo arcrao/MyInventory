@@ -1,0 +1,112 @@
+import React from 'react';
+import { Plus, Edit2, Trash2, AlertTriangle } from 'lucide-react';
+import { Product, Category, Location } from '../../types';
+import { getCategoryName, getLocationName } from '../../utils/helpers';
+
+interface ProductsListProps {
+  products: Product[];
+  categories: Category[];
+  locations: Location[];
+  onAddProduct: () => void;
+  onEditProduct: (product: Product) => void;
+  onDeleteProduct: (id: number) => void;
+}
+
+export const ProductsList: React.FC<ProductsListProps> = ({
+  products,
+  categories,
+  locations,
+  onAddProduct,
+  onEditProduct,
+  onDeleteProduct,
+}) => {
+  return (
+    <div>
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-2xl font-bold">Products</h2>
+        <button
+          onClick={onAddProduct}
+          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 flex items-center gap-2"
+        >
+          <Plus className="w-4 h-4" />
+          Add Product
+        </button>
+      </div>
+
+      <div className="bg-white border rounded-lg overflow-hidden">
+        <table className="w-full">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-4 py-3 text-left text-sm font-medium">Product</th>
+              <th className="px-4 py-3 text-left text-sm font-medium">SKU</th>
+              <th className="px-4 py-3 text-left text-sm font-medium">Brand</th>
+              <th className="px-4 py-3 text-left text-sm font-medium">Category</th>
+              <th className="px-4 py-3 text-left text-sm font-medium">Location</th>
+              <th className="px-4 py-3 text-right text-sm font-medium">Quantity</th>
+              <th className="px-4 py-3 text-right text-sm font-medium">Price</th>
+              <th className="px-4 py-3 text-right text-sm font-medium">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            {products.map((product) => (
+              <tr
+                key={product.id}
+                className={product.quantity <= product.minStock ? 'bg-red-50' : ''}
+              >
+                <td className="px-4 py-3">
+                  <div>
+                    <p className="font-medium">{product.name}</p>
+                    {product.specification && (
+                      <p className="text-xs text-gray-500">{product.specification}</p>
+                    )}
+                    {product.quantity <= product.minStock && (
+                      <span className="text-xs text-red-600 flex items-center gap-1">
+                        <AlertTriangle className="w-3 h-3" />
+                        Low Stock
+                      </span>
+                    )}
+                  </div>
+                </td>
+                <td className="px-4 py-3 text-sm">{product.sku}</td>
+                <td className="px-4 py-3 text-sm">{product.brand || '-'}</td>
+                <td className="px-4 py-3 text-sm">
+                  {getCategoryName(categories, product.categoryId)}
+                </td>
+                <td className="px-4 py-3 text-sm">
+                  {getLocationName(locations, product.locationId)}
+                </td>
+                <td className="px-4 py-3 text-right font-medium">
+                  {product.quantity} {product.unitOfMeasure || 'pcs'}
+                </td>
+                <td className="px-4 py-3 text-right">${product.price.toFixed(2)}</td>
+                <td className="px-4 py-3 text-right">
+                  <button
+                    onClick={() => onEditProduct(product)}
+                    className="text-blue-600 hover:text-blue-800 p-1"
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (confirm('Are you sure you want to delete this product?')) {
+                        onDeleteProduct(product.id);
+                      }
+                    }}
+                    className="text-red-600 hover:text-red-800 p-1 ml-2"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {products.length === 0 && (
+          <div className="text-center py-12 text-gray-500">
+            No products yet. Click "Add Product" to get started.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
