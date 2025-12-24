@@ -3,6 +3,7 @@ import { Header } from './components/Layout/Header';
 import { Dashboard } from './components/Dashboard/Dashboard';
 import { ProductsList } from './components/Products/ProductsList';
 import { ProductForm } from './components/Products/ProductForm';
+import { StockAdjustmentModal } from './components/Products/StockAdjustmentModal';
 import { HistoryView } from './components/History/HistoryView';
 import { SettingsView } from './components/Settings/SettingsView';
 import { useProducts } from './hooks/useProducts';
@@ -15,9 +16,11 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
   const [showProductForm, setShowProductForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [showStockAdjustment, setShowStockAdjustment] = useState(false);
+  const [adjustingProduct, setAdjustingProduct] = useState<Product | null>(null);
 
   const { history, addHistoryEntry } = useHistory();
-  const { products, addProduct, updateProduct, deleteProduct } = useProducts(addHistoryEntry);
+  const { products, addProduct, updateProduct, stockIn, stockOut, deleteProduct } = useProducts(addHistoryEntry);
   const { categories, addCategory, deleteCategory } = useCategories();
   const { locations, addLocation, deleteLocation } = useLocations();
 
@@ -44,6 +47,30 @@ const App: React.FC = () => {
   const handleCancelForm = () => {
     setShowProductForm(false);
     setEditingProduct(null);
+  };
+
+  const handleStockAdjust = (product: Product) => {
+    setAdjustingProduct(product);
+    setShowStockAdjustment(true);
+  };
+
+  const handleStockAdjustmentSubmit = async (
+    productId: number,
+    action: 'stock_in' | 'stock_out',
+    data: any
+  ) => {
+    if (action === 'stock_in') {
+      await stockIn(productId, data);
+    } else {
+      await stockOut(productId, data);
+    }
+    setShowStockAdjustment(false);
+    setAdjustingProduct(null);
+  };
+
+  const handleCancelStockAdjustment = () => {
+    setShowStockAdjustment(false);
+    setAdjustingProduct(null);
   };
 
   return (
@@ -95,6 +122,7 @@ const App: React.FC = () => {
             onAddProduct={handleAddProduct}
             onEditProduct={handleEditProduct}
             onDeleteProduct={deleteProduct}
+            onStockAdjust={handleStockAdjust}
           />
         )}
         {activeTab === 'history' && <HistoryView history={history} products={products} />}
@@ -117,6 +145,14 @@ const App: React.FC = () => {
             locations={locations}
             onSave={handleSaveProduct}
             onCancel={handleCancelForm}
+          />
+        )}
+
+        {showStockAdjustment && adjustingProduct && (
+          <StockAdjustmentModal
+            product={adjustingProduct}
+            onAdjust={handleStockAdjustmentSubmit}
+            onCancel={handleCancelStockAdjustment}
           />
         )}
       </div>

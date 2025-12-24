@@ -1,21 +1,12 @@
 import { Product, Category, Location, HistoryEntry } from '../types';
 import { STORAGE_KEYS } from '../constants';
 
-declare global {
-  interface Window {
-    storage: {
-      get: (key: string) => Promise<{ value: string } | null>;
-      set: (key: string, value: string) => Promise<void>;
-    };
-  }
-}
-
 export class StorageService {
   static async get<T>(key: string): Promise<T | null> {
     try {
-      const result = await window.storage.get(key);
+      const result = localStorage.getItem(key);
       if (result) {
-        return JSON.parse(result.value) as T;
+        return JSON.parse(result) as T;
       }
       return null;
     } catch (error) {
@@ -26,7 +17,7 @@ export class StorageService {
 
   static async set<T>(key: string, value: T): Promise<void> {
     try {
-      await window.storage.set(key, JSON.stringify(value));
+      localStorage.setItem(key, JSON.stringify(value));
     } catch (error) {
       console.error(`Error setting ${key} in storage:`, error);
       throw error;

@@ -1,7 +1,8 @@
-import React from 'react';
-import { Plus, Edit2, Trash2, AlertTriangle } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { Plus, Edit2, Trash2, AlertTriangle, TrendingUp } from 'lucide-react';
 import { Product, Category, Location } from '../../types';
 import { getCategoryName, getLocationName } from '../../utils/helpers';
+import { ProductFilters } from './ProductFilters';
 
 interface ProductsListProps {
   products: Product[];
@@ -10,6 +11,7 @@ interface ProductsListProps {
   onAddProduct: () => void;
   onEditProduct: (product: Product) => void;
   onDeleteProduct: (id: number) => void;
+  onStockAdjust: (product: Product) => void;
 }
 
 export const ProductsList: React.FC<ProductsListProps> = ({
@@ -19,7 +21,26 @@ export const ProductsList: React.FC<ProductsListProps> = ({
   onAddProduct,
   onEditProduct,
   onDeleteProduct,
+  onStockAdjust,
 }) => {
+  const [filters, setFilters] = useState({ searchTerm: '', categoryId: '' });
+
+  const filteredProducts = useMemo(() => {
+    return products.filter((product) => {
+      // Filter by search term (product name, SKU, or brand)
+      const matchesSearch =
+        !filters.searchTerm ||
+        product.name.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
+        product.sku.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
+        product.brand?.toLowerCase().includes(filters.searchTerm.toLowerCase());
+
+      // Filter by category
+      const matchesCategory = !filters.categoryId || product.categoryId === filters.categoryId;
+
+      return matchesSearch && matchesCategory;
+    });
+  }, [products, filters]);
+
   return (
     <div>
       <div className="flex justify-between items-center mb-4">
@@ -33,7 +54,15 @@ export const ProductsList: React.FC<ProductsListProps> = ({
         </button>
       </div>
 
+      <ProductFilters categories={categories} onFilterChange={setFilters} />
+
       <div className="bg-white border rounded-lg overflow-hidden">
+        {filteredProducts.length > 0 && (
+          <div className="px-4 py-2 bg-gray-50 border-b text-sm text-gray-600">
+            Showing {filteredProducts.length} of {products.length} products
+          </div>
+        )}
+
         <table className="w-full">
           <thead className="bg-gray-50">
             <tr>
@@ -48,7 +77,7 @@ export const ProductsList: React.FC<ProductsListProps> = ({
             </tr>
           </thead>
           <tbody className="divide-y">
-            {products.map((product) => (
+            {filteredProducts.map((product) => (
               <tr
                 key={product.id}
                 className={product.quantity <= product.minStock ? 'bg-red-50' : ''}
@@ -81,8 +110,16 @@ export const ProductsList: React.FC<ProductsListProps> = ({
                 <td className="px-4 py-3 text-right">${product.price.toFixed(2)}</td>
                 <td className="px-4 py-3 text-right">
                   <button
+                    onClick={() => onStockAdjust(product)}
+                    className="text-purple-600 hover:text-purple-800 p-1"
+                    title="Adjust Stock"
+                  >
+                    <TrendingUp className="w-4 h-4" />
+                  </button>
+                  <button
                     onClick={() => onEditProduct(product)}
-                    className="text-blue-600 hover:text-blue-800 p-1"
+                    className="text-blue-600 hover:text-blue-800 p-1 ml-2"
+                    title="Edit Product"
                   >
                     <Edit2 className="w-4 h-4" />
                   </button>
@@ -93,6 +130,7 @@ export const ProductsList: React.FC<ProductsListProps> = ({
                       }
                     }}
                     className="text-red-600 hover:text-red-800 p-1 ml-2"
+                    title="Delete Product"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -101,6 +139,11 @@ export const ProductsList: React.FC<ProductsListProps> = ({
             ))}
           </tbody>
         </table>
+        {filteredProducts.length === 0 && products.length > 0 && (
+          <div className="text-center py-12 text-gray-500">
+            No products match your filters. Try adjusting your search criteria.
+          </div>
+        )}
         {products.length === 0 && (
           <div className="text-center py-12 text-gray-500">
             No products yet. Click "Add Product" to get started.

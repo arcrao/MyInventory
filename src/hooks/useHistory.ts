@@ -14,21 +14,13 @@ export const useHistory = () => {
     setHistory(data);
   };
 
-  const addHistoryEntry = async (
-    productId: number,
-    action: HistoryEntry['action'],
-    quantity: number,
-    notes: string = ''
-  ): Promise<void> => {
-    const entry: HistoryEntry = {
+  const addHistoryEntry = async (entry: Omit<HistoryEntry, 'id' | 'timestamp'>): Promise<void> => {
+    const newEntry: HistoryEntry = {
+      ...entry,
       id: Date.now(),
-      productId,
-      action,
-      quantity,
-      notes,
       timestamp: new Date().toISOString(),
     };
-    const newHistory = [entry, ...history];
+    const newHistory = [newEntry, ...history];
     setHistory(newHistory);
     await StorageService.setHistory(newHistory);
   };
