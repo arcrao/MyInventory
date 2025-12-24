@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, Edit2, Trash2, AlertTriangle } from 'lucide-react';
+import { Plus, Edit2, Trash2, AlertTriangle, TrendingUp } from 'lucide-react';
 import { Product, Category, Location } from '../../types';
 import { getCategoryName, getLocationName } from '../../utils/helpers';
 
@@ -10,6 +10,7 @@ interface ProductsListProps {
   onAddProduct: () => void;
   onEditProduct: (product: Product) => void;
   onDeleteProduct: (id: number) => void;
+  onStockAdjust: (product: Product) => void;
 }
 
 export const ProductsList: React.FC<ProductsListProps> = ({
@@ -19,6 +20,7 @@ export const ProductsList: React.FC<ProductsListProps> = ({
   onAddProduct,
   onEditProduct,
   onDeleteProduct,
+  onStockAdjust,
 }) => {
   return (
     <div>
@@ -81,8 +83,16 @@ export const ProductsList: React.FC<ProductsListProps> = ({
                 <td className="px-4 py-3 text-right">${product.price.toFixed(2)}</td>
                 <td className="px-4 py-3 text-right">
                   <button
+                    onClick={() => onStockAdjust(product)}
+                    className="text-purple-600 hover:text-purple-800 p-1"
+                    title="Adjust Stock"
+                  >
+                    <TrendingUp className="w-4 h-4" />
+                  </button>
+                  <button
                     onClick={() => onEditProduct(product)}
-                    className="text-blue-600 hover:text-blue-800 p-1"
+                    className="text-blue-600 hover:text-blue-800 p-1 ml-2"
+                    title="Edit Product"
                   >
                     <Edit2 className="w-4 h-4" />
                   </button>
@@ -93,6 +103,7 @@ export const ProductsList: React.FC<ProductsListProps> = ({
                       }
                     }}
                     className="text-red-600 hover:text-red-800 p-1 ml-2"
+                    title="Delete Product"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>

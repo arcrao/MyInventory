@@ -86,7 +86,9 @@ export const ProductForm: React.FC<ProductFormProps> = ({
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Quantity *</label>
+              <label className="block text-sm font-medium mb-1">
+                Quantity * {product && <span className="text-xs text-gray-500">(Use Stock In/Out buttons to adjust)</span>}
+              </label>
               <input
                 type="number"
                 min="0"
@@ -94,7 +96,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                 onChange={(e) =>
                   setFormData({ ...formData, quantity: parseInt(e.target.value) || 0 })
                 }
-                className="w-full border rounded px-3 py-2"
+                className="w-full border rounded px-3 py-2 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                disabled={!!product}
               />
             </div>
             <div>

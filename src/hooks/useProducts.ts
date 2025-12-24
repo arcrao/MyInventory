@@ -32,25 +32,36 @@ export const useProducts = (onHistoryAdd: (
   };
 
   const updateProduct = async (updatedProduct: Product): Promise<void> => {
-    const oldProduct = products.find(p => p.id === updatedProduct.id);
-    if (!oldProduct) return;
-
-    const quantityDiff = updatedProduct.quantity - oldProduct.quantity;
-
     const newProducts = products.map(p =>
       p.id === updatedProduct.id ? updatedProduct : p
     );
     setProducts(newProducts);
     await StorageService.setProducts(newProducts);
+    await onHistoryAdd(updatedProduct.id, 'updated', 0, 'Product details updated');
+  };
 
-    if (quantityDiff !== 0) {
-      await onHistoryAdd(
-        updatedProduct.id,
-        quantityDiff > 0 ? 'stock_in' : 'stock_out',
-        Math.abs(quantityDiff),
-        'Stock updated'
-      );
-    }
+  const stockIn = async (productId: number, quantity: number, notes: string): Promise<void> => {
+    const product = products.find(p => p.id === productId);
+    if (!product) return;
+
+    const updatedProduct = { ...product, quantity: product.quantity + quantity };
+    const newProducts = products.map(p => p.id === productId ? updatedProduct : p);
+
+    setProducts(newProducts);
+    await StorageService.setProducts(newProducts);
+    await onHistoryAdd(productId, 'stock_in', quantity, notes || 'Stock added');
+  };
+
+  const stockOut = async (productId: number, quantity: number, notes: string): Promise<void> => {
+    const product = products.find(p => p.id === productId);
+    if (!product) return;
+
+    const updatedProduct = { ...product, quantity: product.quantity - quantity };
+    const newProducts = products.map(p => p.id === productId ? updatedProduct : p);
+
+    setProducts(newProducts);
+    await StorageService.setProducts(newProducts);
+    await onHistoryAdd(productId, 'stock_out', quantity, notes || 'Stock removed');
   };
 
   const deleteProduct = async (id: number): Promise<void> => {
@@ -64,6 +75,8 @@ export const useProducts = (onHistoryAdd: (
     products,
     addProduct,
     updateProduct,
+    stockIn,
+    stockOut,
     deleteProduct,
   };
 };
