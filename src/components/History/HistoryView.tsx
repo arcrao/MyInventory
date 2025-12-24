@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { QrCode } from 'lucide-react';
 import { HistoryEntry, Product } from '../../types';
 import { getProductName } from '../../utils/helpers';
+import { QRCodeModal } from './QRCodeModal';
 
 interface HistoryViewProps {
   history: HistoryEntry[];
@@ -8,6 +10,8 @@ interface HistoryViewProps {
 }
 
 export const HistoryView: React.FC<HistoryViewProps> = ({ history, products }) => {
+  const [selectedEntry, setSelectedEntry] = useState<HistoryEntry | null>(null);
+
   const getActionColor = (action: string) => {
     switch (action) {
       case 'stock_in':
@@ -32,6 +36,10 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ history, products }) =
     return new Date(timestamp).toLocaleString();
   };
 
+  const canShowQRCode = (action: string) => {
+    return action === 'stock_in' || action === 'created';
+  };
+
   return (
     <div>
       <h2 className="text-2xl font-bold mb-4">Stock History</h2>
@@ -47,6 +55,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ history, products }) =
                 <th className="px-4 py-3 text-right text-sm font-medium">Quantity</th>
                 <th className="px-4 py-3 text-left text-sm font-medium">Details</th>
                 <th className="px-4 py-3 text-left text-sm font-medium">Notes</th>
+                <th className="px-4 py-3 text-center text-sm font-medium">QR Code</th>
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -101,6 +110,19 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ history, products }) =
                     )}
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-600">{entry.notes || '-'}</td>
+                  <td className="px-4 py-3 text-center">
+                    {canShowQRCode(entry.action) ? (
+                      <button
+                        onClick={() => setSelectedEntry(entry)}
+                        className="text-blue-600 hover:text-blue-800 p-1"
+                        title="Show QR Code"
+                      >
+                        <QrCode className="w-5 h-5" />
+                      </button>
+                    ) : (
+                      <span className="text-gray-300">-</span>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -110,6 +132,14 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ history, products }) =
           <div className="text-center py-12 text-gray-500">No history entries yet.</div>
         )}
       </div>
+
+      {selectedEntry && (
+        <QRCodeModal
+          entry={selectedEntry}
+          products={products}
+          onClose={() => setSelectedEntry(null)}
+        />
+      )}
     </div>
   );
 };
