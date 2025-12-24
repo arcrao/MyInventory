@@ -56,14 +56,13 @@ const App: React.FC = () => {
 
   const handleStockAdjustmentSubmit = async (
     productId: number,
-    quantity: number,
     action: 'stock_in' | 'stock_out',
-    notes: string
+    data: any
   ) => {
     if (action === 'stock_in') {
-      await stockIn(productId, quantity, notes);
+      await stockIn(productId, data);
     } else {
-      await stockOut(productId, quantity, notes);
+      await stockOut(productId, data);
     }
     setShowStockAdjustment(false);
     setAdjustingProduct(null);

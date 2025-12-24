@@ -1,13 +1,17 @@
 import { useState, useEffect } from 'react';
-import { Product, ProductFormData } from '../types';
+import { Product, ProductFormData, HistoryEntry } from '../types';
 import { StorageService } from '../services/storage.service';
 
-export const useProducts = (onHistoryAdd: (
-  productId: number,
-  action: 'created' | 'stock_in' | 'stock_out' | 'deleted' | 'updated',
-  quantity: number,
-  notes?: string
-) => Promise<void>) => {
+interface StockAdjustmentData {
+  quantity: number;
+  notes: string;
+  receivedBy?: string;
+  pricePerUnit?: number;
+  issuedTo?: string;
+  date: string;
+}
+
+export const useProducts = (onHistoryAdd: (entry: Omit<HistoryEntry, 'id' | 'timestamp'>) => Promise<void>) => {
   const [products, setProducts] = useState<Product[]>([]);
 
   useEffect(() => {
@@ -28,7 +32,12 @@ export const useProducts = (onHistoryAdd: (
     const newProducts = [...products, newProduct];
     setProducts(newProducts);
     await StorageService.setProducts(newProducts);
-    await onHistoryAdd(newProduct.id, 'created', productData.quantity, 'Product created');
+    await onHistoryAdd({
+      productId: newProduct.id,
+      action: 'created',
+      quantity: productData.quantity,
+      notes: 'Product created',
+    });
   };
 
   const updateProduct = async (updatedProduct: Product): Promise<void> => {
@@ -37,38 +46,63 @@ export const useProducts = (onHistoryAdd: (
     );
     setProducts(newProducts);
     await StorageService.setProducts(newProducts);
-    await onHistoryAdd(updatedProduct.id, 'updated', 0, 'Product details updated');
+    await onHistoryAdd({
+      productId: updatedProduct.id,
+      action: 'updated',
+      quantity: 0,
+      notes: 'Product details updated',
+    });
   };
 
-  const stockIn = async (productId: number, quantity: number, notes: string): Promise<void> => {
+  const stockIn = async (productId: number, data: StockAdjustmentData): Promise<void> => {
     const product = products.find(p => p.id === productId);
     if (!product) return;
 
-    const updatedProduct = { ...product, quantity: product.quantity + quantity };
+    const updatedProduct = { ...product, quantity: product.quantity + data.quantity };
     const newProducts = products.map(p => p.id === productId ? updatedProduct : p);
 
     setProducts(newProducts);
     await StorageService.setProducts(newProducts);
-    await onHistoryAdd(productId, 'stock_in', quantity, notes || 'Stock added');
+    await onHistoryAdd({
+      productId,
+      action: 'stock_in',
+      quantity: data.quantity,
+      notes: data.notes || 'Stock added',
+      receivedBy: data.receivedBy,
+      pricePerUnit: data.pricePerUnit,
+      date: data.date,
+    });
   };
 
-  const stockOut = async (productId: number, quantity: number, notes: string): Promise<void> => {
+  const stockOut = async (productId: number, data: StockAdjustmentData): Promise<void> => {
     const product = products.find(p => p.id === productId);
     if (!product) return;
 
-    const updatedProduct = { ...product, quantity: product.quantity - quantity };
+    const updatedProduct = { ...product, quantity: product.quantity - data.quantity };
     const newProducts = products.map(p => p.id === productId ? updatedProduct : p);
 
     setProducts(newProducts);
     await StorageService.setProducts(newProducts);
-    await onHistoryAdd(productId, 'stock_out', quantity, notes || 'Stock removed');
+    await onHistoryAdd({
+      productId,
+      action: 'stock_out',
+      quantity: data.quantity,
+      notes: data.notes || 'Stock removed',
+      issuedTo: data.issuedTo,
+      date: data.date,
+    });
   };
 
   const deleteProduct = async (id: number): Promise<void> => {
     const newProducts = products.filter(p => p.id !== id);
     setProducts(newProducts);
     await StorageService.setProducts(newProducts);
-    await onHistoryAdd(id, 'deleted', 0, 'Product deleted');
+    await onHistoryAdd({
+      productId: id,
+      action: 'deleted',
+      quantity: 0,
+      notes: 'Product deleted',
+    });
   };
 
   return {

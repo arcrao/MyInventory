@@ -31,6 +31,13 @@ export interface HistoryEntry {
   quantity: number;
   notes: string;
   timestamp: string;
+  // Stock In specific fields
+  receivedBy?: string;
+  pricePerUnit?: number;
+  // Stock Out specific fields
+  issuedTo?: string;
+  // Common field for both
+  date?: string;
 }
 
 export type TabType = 'dashboard' | 'products' | 'history' | 'settings';

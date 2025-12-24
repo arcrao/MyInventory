@@ -2,9 +2,18 @@ import React, { useState } from 'react';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 import { Product } from '../../types';
 
+interface StockAdjustmentData {
+  quantity: number;
+  notes: string;
+  receivedBy?: string;
+  pricePerUnit?: number;
+  issuedTo?: string;
+  date: string;
+}
+
 interface StockAdjustmentModalProps {
   product: Product;
-  onAdjust: (productId: number, quantity: number, action: 'stock_in' | 'stock_out', notes: string) => void;
+  onAdjust: (productId: number, action: 'stock_in' | 'stock_out', data: StockAdjustmentData) => void;
   onCancel: () => void;
 }
 
@@ -16,6 +25,10 @@ export const StockAdjustmentModal: React.FC<StockAdjustmentModalProps> = ({
   const [action, setAction] = useState<'stock_in' | 'stock_out'>('stock_in');
   const [quantity, setQuantity] = useState<number>(0);
   const [notes, setNotes] = useState<string>('');
+  const [receivedBy, setReceivedBy] = useState<string>('');
+  const [pricePerUnit, setPricePerUnit] = useState<number>(product.price);
+  const [issuedTo, setIssuedTo] = useState<string>('');
+  const [date, setDate] = useState<string>(new Date().toISOString().split('T')[0]);
 
   const handleSubmit = () => {
     if (quantity <= 0) {
@@ -28,7 +41,25 @@ export const StockAdjustmentModal: React.FC<StockAdjustmentModalProps> = ({
       return;
     }
 
-    onAdjust(product.id, quantity, action, notes);
+    if (action === 'stock_in' && !receivedBy.trim()) {
+      alert('Please enter who received the stock');
+      return;
+    }
+
+    if (action === 'stock_out' && !issuedTo.trim()) {
+      alert('Please enter who the stock was issued to');
+      return;
+    }
+
+    const adjustmentData: StockAdjustmentData = {
+      quantity,
+      notes,
+      date,
+      ...(action === 'stock_in' && { receivedBy, pricePerUnit }),
+      ...(action === 'stock_out' && { issuedTo }),
+    };
+
+    onAdjust(product.id, action, adjustmentData);
   };
 
   const newQuantity = action === 'stock_in'
@@ -37,7 +68,7 @@ export const StockAdjustmentModal: React.FC<StockAdjustmentModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg p-6 max-w-md w-full">
+      <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <h2 className="text-2xl font-bold mb-4">Adjust Stock</h2>
 
         <div className="mb-4">
@@ -75,19 +106,72 @@ export const StockAdjustmentModal: React.FC<StockAdjustmentModalProps> = ({
           </div>
         </div>
 
-        <div className="mb-4">
-          <label className="block text-sm font-medium mb-1">
-            Quantity {action === 'stock_in' ? 'to Add' : 'to Remove'} *
-          </label>
-          <input
-            type="number"
-            min="1"
-            value={quantity}
-            onChange={(e) => setQuantity(parseInt(e.target.value) || 0)}
-            className="w-full border rounded px-3 py-2"
-            placeholder="Enter quantity"
-          />
+        <div className="grid grid-cols-2 gap-4 mb-4">
+          <div>
+            <label className="block text-sm font-medium mb-1">
+              Quantity {action === 'stock_in' ? 'to Add' : 'to Remove'} *
+            </label>
+            <input
+              type="number"
+              min="1"
+              value={quantity}
+              onChange={(e) => setQuantity(parseInt(e.target.value) || 0)}
+              className="w-full border rounded px-3 py-2"
+              placeholder="Enter quantity"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1">Date *</label>
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="w-full border rounded px-3 py-2"
+            />
+          </div>
         </div>
+
+        {action === 'stock_in' && (
+          <div className="grid grid-cols-2 gap-4 mb-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Received By *</label>
+              <input
+                type="text"
+                value={receivedBy}
+                onChange={(e) => setReceivedBy(e.target.value)}
+                className="w-full border rounded px-3 py-2"
+                placeholder="Enter person name"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1">Price per Unit *</label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={pricePerUnit}
+                onChange={(e) => setPricePerUnit(parseFloat(e.target.value) || 0)}
+                className="w-full border rounded px-3 py-2"
+                placeholder="Enter price"
+              />
+            </div>
+          </div>
+        )}
+
+        {action === 'stock_out' && (
+          <div className="mb-4">
+            <label className="block text-sm font-medium mb-1">Issued To *</label>
+            <input
+              type="text"
+              value={issuedTo}
+              onChange={(e) => setIssuedTo(e.target.value)}
+              className="w-full border rounded px-3 py-2"
+              placeholder="Enter person/department name"
+            />
+          </div>
+        )}
 
         <div className="mb-4">
           <label className="block text-sm font-medium mb-1">Notes</label>
@@ -109,6 +193,11 @@ export const StockAdjustmentModal: React.FC<StockAdjustmentModalProps> = ({
                 {newQuantity} {product.unitOfMeasure}
               </span>
             </p>
+            {action === 'stock_in' && pricePerUnit > 0 && (
+              <p className="text-xs text-gray-600 mt-1">
+                Total Cost: ${(quantity * pricePerUnit).toFixed(2)}
+              </p>
+            )}
             {newQuantity <= product.minStock && (
               <p className="text-xs text-orange-600 mt-1">⚠️ Warning: Stock will be at or below minimum level</p>
             )}
