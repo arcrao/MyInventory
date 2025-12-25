@@ -45,7 +45,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, categories }) =>
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-purple-600 font-medium">Total Value</p>
-              <p className="text-3xl font-bold text-purple-900">${totalValue.toFixed(2)}</p>
+              <p className="text-3xl font-bold text-purple-900">₹{totalValue.toFixed(2)}</p>
             </div>
             <BarChart3 className="w-12 h-12 text-purple-600" />
           </div>
