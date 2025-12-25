@@ -6,6 +6,8 @@ import { ProductForm } from './components/Products/ProductForm';
 import { StockAdjustmentModal } from './components/Products/StockAdjustmentModal';
 import { HistoryView } from './components/History/HistoryView';
 import { SettingsView } from './components/Settings/SettingsView';
+import { AuthForm } from './components/Auth/AuthForm';
+import { useAuth } from './contexts/AuthContext';
 import { useProducts } from './hooks/useProducts';
 import { useCategories } from './hooks/useCategories';
 import { useLocations } from './hooks/useLocations';
@@ -13,6 +15,7 @@ import { useHistory } from './hooks/useHistory';
 import { Product, TabType } from './types';
 
 const App: React.FC = () => {
+  const { user, loading } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
   const [showProductForm, setShowProductForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -23,6 +26,23 @@ const App: React.FC = () => {
   const { products, addProduct, updateProduct, stockIn, stockOut, deleteProduct } = useProducts(addHistoryEntry);
   const { categories, addCategory, deleteCategory } = useCategories();
   const { locations, addLocation, deleteLocation } = useLocations();
+
+  // Show loading state while checking authentication
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show auth form if not authenticated
+  if (!user) {
+    return <AuthForm />;
+  }
 
   const handleAddProduct = () => {
     setEditingProduct(null);
