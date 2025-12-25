@@ -81,11 +81,13 @@ To enable Google sign-in, you'll need to set up OAuth credentials with Google an
    - Add scopes: `email` and `profile`
    - Add test users if needed (for development)
 6. For "Application type", select "Web application"
-7. Add authorized redirect URIs:
-   - Format: `https://<your-project-ref>.supabase.co/auth/v1/callback`
-   - You can find your project reference in Supabase under Settings > API
-   - Example: `https://abcdefghijklmnop.supabase.co/auth/v1/callback`
-   - For local development, you may also need to add your local URL
+7. Add authorized redirect URIs (you need to add the Supabase callback URL, NOT your app URL):
+   - **Required**: `https://<your-project-ref>.supabase.co/auth/v1/callback`
+     - Find your project reference in Supabase under Settings > API
+     - Example: `https://abcdefghijklmnop.supabase.co/auth/v1/callback`
+   - **Important**: Do NOT add `http://localhost:5173` or `http://localhost:3000` to Google OAuth
+     - Supabase handles the OAuth flow and redirects back to your app
+     - Your app URL is configured in Supabase, not Google
 8. Click "Create" and save your **Client ID** and **Client Secret**
 
 ### 5.2: Configure Google OAuth in Supabase
@@ -98,14 +100,25 @@ To enable Google sign-in, you'll need to set up OAuth credentials with Google an
    - **Client Secret**: Paste the Client Secret from Google
 5. Click "Save"
 
-### 5.3: Additional Configuration (Optional)
+### 5.3: Configure Supabase Redirect URLs
 
-- **Allowed redirect URLs**: By default, Supabase allows redirects to your site URL
-- You can customize the redirect URL in the application code if needed
-- For production, make sure to:
-  - Update your Google OAuth consent screen to "Production" status
-  - Add your production domain to authorized redirect URIs
-  - Update Supabase site URL in Settings > API
+After enabling Google OAuth in Supabase, you need to configure where users are redirected after authentication:
+
+1. In Supabase dashboard, go to "Authentication" > "URL Configuration"
+2. Set the **Site URL**:
+   - For local development: `http://localhost:5173` (Vite's default port)
+   - For production: Your production domain (e.g., `https://myapp.com`)
+3. Add **Redirect URLs** (comma-separated list):
+   - For local development: `http://localhost:5173/**`
+   - For production: `https://myapp.com/**`
+   - Example: `http://localhost:5173/**, https://myapp.com/**`
+
+### 5.4: Additional Configuration (Production)
+
+For production deployment:
+- Update your Google OAuth consent screen to "Production" status
+- Ensure your production domain is in Supabase Site URL
+- The Google OAuth redirect URI remains the Supabase callback URL (never changes)
 
 ## Step 6: Install Dependencies
 
@@ -115,7 +128,25 @@ The Supabase client library has already been installed. If you need to reinstall
 npm install @supabase/supabase-js
 ```
 
-## Step 7: Run the Application
+## Step 7: Create Database Tables
+
+The application stores all inventory data in Supabase tables. You must create these tables before using the app:
+
+1. See [DATABASE_SCHEMA.md](./DATABASE_SCHEMA.md) for the complete SQL schema
+2. Go to your Supabase Dashboard → SQL Editor
+3. Create a new query
+4. Copy and paste the entire SQL schema from DATABASE_SCHEMA.md
+5. Click "Run" to execute the schema
+
+This will create:
+- `categories` table - Product categories
+- `locations` table - Storage locations
+- `products` table - Inventory products
+- `history` table - Transaction history
+
+All tables include Row Level Security (RLS) policies to ensure each user can only access their own data.
+
+## Step 8: Run the Application
 
 ```bash
 npm run dev
@@ -182,9 +213,22 @@ The application will start and you should see the authentication screen.
 
 1. Verify that Google OAuth is enabled in Supabase Authentication > Providers
 2. Check that your Google Client ID and Secret are correct
-3. Ensure your redirect URI in Google Cloud Console matches your Supabase project URL
-4. Make sure your Google OAuth consent screen is configured properly
-5. Clear your browser cache and cookies, then try again
+3. Ensure your redirect URI in Google Cloud Console matches your Supabase callback URL:
+   - Should be: `https://<your-project-ref>.supabase.co/auth/v1/callback`
+   - Should NOT be: `http://localhost:5173` or your app URL
+4. Check Supabase URL Configuration (Authentication > URL Configuration):
+   - Site URL should match where your app is running (e.g., `http://localhost:5173`)
+   - Redirect URLs should include your app URL pattern (e.g., `http://localhost:5173/**`)
+5. Make sure your Google OAuth consent screen is configured properly
+6. Clear your browser cache and cookies, then try again
+
+### Redirecting to Wrong Port (localhost:3000 instead of localhost:5173)
+
+This happens when Supabase Site URL is misconfigured:
+1. Go to Supabase Dashboard → Authentication → URL Configuration
+2. Update **Site URL** to: `http://localhost:5173`
+3. Update **Redirect URLs** to: `http://localhost:5173/**`
+4. The app runs on port 5173 by default (Vite), not 3000
 
 ## Security Notes
 

@@ -24,28 +24,23 @@ export const useProducts = (onHistoryAdd: (entry: Omit<HistoryEntry, 'id' | 'tim
   };
 
   const addProduct = async (productData: ProductFormData): Promise<void> => {
-    const newProduct: Product = {
-      ...productData,
-      id: Date.now(),
-      createdAt: new Date().toISOString(),
-    };
-    const newProducts = [...products, newProduct];
-    setProducts(newProducts);
-    await StorageService.setProducts(newProducts);
-    await onHistoryAdd({
-      productId: newProduct.id,
-      action: 'created',
-      quantity: productData.quantity,
-      notes: 'Product created',
-    });
+    const newProduct = await StorageService.addProduct(productData);
+    if (newProduct) {
+      setProducts([...products, newProduct]);
+      await onHistoryAdd({
+        productId: newProduct.id,
+        action: 'created',
+        quantity: productData.quantity,
+        notes: 'Product created',
+      });
+    }
   };
 
   const updateProduct = async (updatedProduct: Product): Promise<void> => {
-    const newProducts = products.map(p =>
+    await StorageService.updateProduct(updatedProduct.id, updatedProduct);
+    setProducts(products.map(p =>
       p.id === updatedProduct.id ? updatedProduct : p
-    );
-    setProducts(newProducts);
-    await StorageService.setProducts(newProducts);
+    ));
     await onHistoryAdd({
       productId: updatedProduct.id,
       action: 'updated',
@@ -59,10 +54,8 @@ export const useProducts = (onHistoryAdd: (entry: Omit<HistoryEntry, 'id' | 'tim
     if (!product) return;
 
     const updatedProduct = { ...product, quantity: product.quantity + data.quantity };
-    const newProducts = products.map(p => p.id === productId ? updatedProduct : p);
-
-    setProducts(newProducts);
-    await StorageService.setProducts(newProducts);
+    await StorageService.updateProduct(productId, { quantity: updatedProduct.quantity });
+    setProducts(products.map(p => p.id === productId ? updatedProduct : p));
     await onHistoryAdd({
       productId,
       action: 'stock_in',
@@ -79,10 +72,8 @@ export const useProducts = (onHistoryAdd: (entry: Omit<HistoryEntry, 'id' | 'tim
     if (!product) return;
 
     const updatedProduct = { ...product, quantity: product.quantity - data.quantity };
-    const newProducts = products.map(p => p.id === productId ? updatedProduct : p);
-
-    setProducts(newProducts);
-    await StorageService.setProducts(newProducts);
+    await StorageService.updateProduct(productId, { quantity: updatedProduct.quantity });
+    setProducts(products.map(p => p.id === productId ? updatedProduct : p));
     await onHistoryAdd({
       productId,
       action: 'stock_out',
@@ -94,9 +85,8 @@ export const useProducts = (onHistoryAdd: (entry: Omit<HistoryEntry, 'id' | 'tim
   };
 
   const deleteProduct = async (id: number): Promise<void> => {
-    const newProducts = products.filter(p => p.id !== id);
-    setProducts(newProducts);
-    await StorageService.setProducts(newProducts);
+    await StorageService.deleteProduct(id);
+    setProducts(products.filter(p => p.id !== id));
     await onHistoryAdd({
       productId: id,
       action: 'deleted',

@@ -10,7 +10,8 @@ A comprehensive Inventory Management System built with React, TypeScript, and Ta
 - **Stock Tracking**: Monitor stock levels with automatic low stock alerts
 - **History Log**: Track all inventory changes and transactions
 - **Categories & Locations**: Organize products by custom categories and storage locations
-- **Persistent Storage**: Data persists using browser storage API
+- **Cloud Database**: All data stored securely in Supabase with user isolation
+- **Multi-tenant**: Each user has their own isolated data
 
 ## Project Structure
 
@@ -126,7 +127,11 @@ npm run build
 npm run preview
 ```
 
-**Important**: Before running the application, you must set up Supabase authentication. See [SUPABASE_SETUP.md](./SUPABASE_SETUP.md) for detailed setup instructions.
+**Important**: Before running the application, you must set up Supabase:
+1. **Authentication**: Configure user authentication
+2. **Database**: Create required tables for inventory data
+
+See [SUPABASE_SETUP.md](./SUPABASE_SETUP.md) for authentication setup and [DATABASE_SCHEMA.md](./DATABASE_SCHEMA.md) for database schema.
 
 ### Development
 

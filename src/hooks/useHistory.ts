@@ -15,14 +15,9 @@ export const useHistory = () => {
   };
 
   const addHistoryEntry = async (entry: Omit<HistoryEntry, 'id' | 'timestamp'>): Promise<void> => {
-    const newEntry: HistoryEntry = {
-      ...entry,
-      id: Date.now(),
-      timestamp: new Date().toISOString(),
-    };
-    const newHistory = [newEntry, ...history];
-    setHistory(newHistory);
-    await StorageService.setHistory(newHistory);
+    await StorageService.addHistoryEntry(entry);
+    // Reload history to get the new entry with server-generated ID and timestamp
+    await loadHistory();
   };
 
   return {
