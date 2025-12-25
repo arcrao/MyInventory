@@ -24,20 +24,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     console.log('[AuthContext] Current URL:', window.location.href);
     console.log('[AuthContext] Has hash params:', window.location.hash.length > 0);
 
-    // Check if this is an OAuth callback that failed (no tokens in URL)
-    const isOAuthCallback = window.location.href.includes('my-inventory') &&
-                           document.referrer.includes('google.com');
+    // Check if this is an OAuth callback (will have hash params OR error params)
+    const hasHashParams = window.location.hash.length > 1;
+    const hasErrorParams = window.location.search.includes('error');
+    const isOAuthCallback = hasHashParams || hasErrorParams;
 
+    // If it's an OAuth callback but no access_token, the OAuth failed
     if (isOAuthCallback && !window.location.hash.includes('access_token')) {
-      console.log('[AuthContext] ⚠️ OAuth callback without tokens - login failed!');
-      console.log('[AuthContext] Clearing any stale sessions...');
-      // Clear any stale sessions
-      supabase.auth.signOut().then(() => {
-        setUser(null);
-        setSession(null);
-        setLoading(false);
-      });
-      return;
+      console.log('[AuthContext] ⚠️ OAuth callback detected but no access token - login may have failed');
+      console.log('[AuthContext] Hash:', window.location.hash);
+      console.log('[AuthContext] Search:', window.location.search);
+      // Don't return here - let the normal session check handle it
+      // This way if there's a valid session from before, it will still work
     }
 
     // Get initial session
