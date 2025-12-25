@@ -24,6 +24,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     console.log('[AuthContext] Current URL:', window.location.href);
     console.log('[AuthContext] Has hash params:', window.location.hash.length > 0);
 
+    // Check if this is an OAuth callback that failed (no tokens in URL)
+    const isOAuthCallback = window.location.href.includes('my-inventory') &&
+                           document.referrer.includes('google.com');
+
+    if (isOAuthCallback && !window.location.hash.includes('access_token')) {
+      console.log('[AuthContext] ⚠️ OAuth callback without tokens - login failed!');
+      console.log('[AuthContext] Clearing any stale sessions...');
+      // Clear any stale sessions
+      supabase.auth.signOut().then(() => {
+        setUser(null);
+        setSession(null);
+        setLoading(false);
+      });
+      return;
+    }
+
     // Get initial session
     supabase.auth.getSession().then(({ data: { session }, error }) => {
       console.log('[AuthContext] Initial session check completed:', {
@@ -47,6 +63,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLoading(false);
     }).catch((err) => {
       console.error('[AuthContext] Error getting session:', err);
+      setUser(null);
+      setSession(null);
       setLoading(false);
     });
 
@@ -93,12 +111,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signInWithGoogle = async () => {
+    // Use the EXACT current URL to handle Vercel preview deployments
+    const currentUrl = window.location.origin;
+    console.log('[AuthContext] Starting Google OAuth with redirectTo:', currentUrl);
+
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: window.location.origin,
+        redirectTo: currentUrl,
+        // Skip confirmation for faster flow
+        skipBrowserRedirect: false,
       },
     });
+
+    if (error) {
+      console.error('[AuthContext] Google OAuth initiation error:', error);
+    }
+
     return { error };
   };
 

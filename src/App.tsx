@@ -258,11 +258,19 @@ const App: React.FC = () => {
 
   // Show auth form if not authenticated
   if (!user) {
+    console.log('[App] 🔒 No user - rendering AuthForm');
+    return <AuthForm />;
+  }
+
+  // Extra safety check - should never happen but prevents dashboard from showing without auth
+  if (!user.id || !user.email) {
+    console.error('[App] ⚠️ Invalid user object - forcing logout');
     return <AuthForm />;
   }
 
   // Render authenticated app with key to force remount on user change
   // This ensures hooks are properly reset when switching between auth methods
+  console.log('[App] ✓ Authenticated - rendering dashboard for user:', user.email);
   return <AuthenticatedApp key={user.id} user={user} />;
 };
 
