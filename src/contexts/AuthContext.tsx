@@ -21,16 +21,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     console.log('[AuthContext] Initializing auth...');
+    console.log('[AuthContext] Current URL:', window.location.href);
+    console.log('[AuthContext] Has hash params:', window.location.hash.length > 0);
 
     // Get initial session
     supabase.auth.getSession().then(({ data: { session }, error }) => {
-      console.log('[AuthContext] Initial session:', {
+      console.log('[AuthContext] Initial session check completed:', {
         hasSession: !!session,
-        user: session?.user ? { id: session.user.id, email: session.user.email } : null,
-        error
+        user: session?.user ? {
+          id: session.user.id,
+          email: session.user.email,
+          provider: session.user.app_metadata?.provider
+        } : null,
+        error: error ? error.message : null
       });
+
+      if (session) {
+        console.log('[AuthContext] ✓ Session found! Setting user state...');
+      } else {
+        console.log('[AuthContext] ✗ No session found. User will see login form.');
+      }
+
       setSession(session);
       setUser(session?.user ?? null);
+      setLoading(false);
+    }).catch((err) => {
+      console.error('[AuthContext] Error getting session:', err);
       setLoading(false);
     });
 
@@ -38,17 +54,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log('[AuthContext] Auth state changed:', {
-        event,
-        hasSession: !!session,
-        user: session?.user ? { id: session.user.id, email: session.user.email } : null
-      });
+      console.log('[AuthContext] ════════════════════════════════');
+      console.log('[AuthContext] Auth state change event fired!');
+      console.log('[AuthContext] Event type:', event);
+      console.log('[AuthContext] Has session:', !!session);
+      console.log('[AuthContext] User:', session?.user ? {
+        id: session.user.id,
+        email: session.user.email,
+        provider: session.user.app_metadata?.provider
+      } : null);
+      console.log('[AuthContext] ════════════════════════════════');
+
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      console.log('[AuthContext] Cleaning up auth subscription');
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signIn = async (email: string, password: string) => {

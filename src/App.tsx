@@ -16,7 +16,11 @@ import { Product, TabType } from './types';
 
 // Separate component for authenticated app to ensure clean remount on auth changes
 const AuthenticatedApp: React.FC<{ user: any }> = ({ user }) => {
-  console.log('[AuthenticatedApp] Mounting with user:', { id: user.id, email: user.email });
+  console.log('[AuthenticatedApp] ════════════════════════════════════');
+  console.log('[AuthenticatedApp] Component MOUNTING/REMOUNTING!');
+  console.log('[AuthenticatedApp] User:', { id: user.id, email: user.email, provider: user.app_metadata?.provider });
+  console.log('[AuthenticatedApp] This component will now initialize all data hooks...');
+  console.log('[AuthenticatedApp] ════════════════════════════════════');
 
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
   const [showProductForm, setShowProductForm] = useState(false);
@@ -221,10 +225,23 @@ const App: React.FC = () => {
 
   // Debug: Log auth state
   useEffect(() => {
-    console.log('[App] Auth state changed:', {
-      user: user ? { id: user.id, email: user.email, provider: user.app_metadata?.provider } : null,
-      loading
-    });
+    console.log('[App] ────────────────────────────────────────');
+    console.log('[App] Auth state changed in main App component');
+    console.log('[App] Loading:', loading);
+    console.log('[App] User:', user ? {
+      id: user.id,
+      email: user.email,
+      provider: user.app_metadata?.provider
+    } : null);
+    console.log('[App] ────────────────────────────────────────');
+
+    if (!loading && user) {
+      console.log('[App] → Will render AuthenticatedApp with key:', user.id);
+    } else if (!loading && !user) {
+      console.log('[App] → Will render AuthForm (login page)');
+    } else {
+      console.log('[App] → Will render loading spinner');
+    }
   }, [user, loading]);
 
   // Show loading state while checking authentication
