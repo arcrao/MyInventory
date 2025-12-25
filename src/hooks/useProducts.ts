@@ -6,9 +6,8 @@ import { User } from '@supabase/supabase-js';
 interface StockAdjustmentData {
   quantity: number;
   notes: string;
-  receivedBy?: string;
+  contactPerson?: string;
   pricePerUnit?: number;
-  issuedTo?: string;
   date: string;
 }
 
@@ -20,27 +19,44 @@ export const useProducts = (
   const [currentPage, setCurrentPage] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [filters, setFilters] = useState({ searchTerm: '', categoryId: '' });
   const pageSize = 50;
 
-  const loadProducts = async (page?: number) => {
+  const loadProducts = async (page?: number, newFilters?: { searchTerm: string; categoryId: string }) => {
+    console.log('[useProducts] loadProducts called, user:', user ? { id: user.id, email: user.email } : null);
+
     if (!user) {
       console.log('[useProducts] No user, skipping load');
       return;
     }
 
     try {
-      console.log('[useProducts] Loading products, page:', page);
+      console.log('[useProducts] Starting to load products, page:', page);
       setLoading(true);
       const pageToLoad = page !== undefined ? page : currentPage;
+      const filtersToUse = newFilters || filters;
+
+      console.log('[useProducts] Calling StorageService.getProducts...');
       const [data, count] = await Promise.all([
-        StorageService.getProducts(pageToLoad, pageSize),
-        StorageService.getProductsCount()
+        StorageService.getProducts(
+          pageToLoad,
+          pageSize,
+          filtersToUse.categoryId || undefined,
+          filtersToUse.searchTerm || undefined
+        ),
+        StorageService.getProductsCount(
+          filtersToUse.categoryId || undefined,
+          filtersToUse.searchTerm || undefined
+        )
       ]);
       console.log('[useProducts] Loaded products:', data.length, 'Total count:', count);
       setProducts(data);
       setTotalCount(count);
       if (page !== undefined) {
         setCurrentPage(page);
+      }
+      if (newFilters) {
+        setFilters(newFilters);
       }
     } catch (error) {
       console.error('[useProducts] Error loading products:', error);
@@ -49,12 +65,23 @@ export const useProducts = (
     }
   };
 
+  const applyFilters = (newFilters: { searchTerm: string; categoryId: string }) => {
+    setCurrentPage(0); // Reset to first page
+    loadProducts(0, newFilters);
+  };
+
   useEffect(() => {
-    console.log('[useProducts] useEffect triggered, user:', !!user, 'currentPage:', currentPage);
+    console.log('[useProducts] useEffect triggered', {
+      hasUser: !!user,
+      userId: user?.id,
+      userEmail: user?.email,
+      currentPage
+    });
     loadProducts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, currentPage]);
 
-  const addProduct = async (productData: ProductFormData): Promise<void> => {
+  const addProduct = async (productData: ProductFormData, skipReload: boolean = false): Promise<void> => {
     const newProduct = await StorageService.addProduct(productData);
     if (newProduct) {
       await onHistoryAdd({
@@ -63,8 +90,10 @@ export const useProducts = (
         quantity: productData.quantity,
         notes: 'Product created',
       });
-      // Reload products to reflect changes
-      await loadProducts();
+      // Reload products to reflect changes (skip for bulk import)
+      if (!skipReload) {
+        await loadProducts();
+      }
     }
   };
 
@@ -91,7 +120,7 @@ export const useProducts = (
       action: 'stock_in',
       quantity: data.quantity,
       notes: data.notes || 'Stock added',
-      receivedBy: data.receivedBy,
+      contactPerson: data.contactPerson,
       pricePerUnit: data.pricePerUnit,
       date: data.date,
     });
@@ -110,7 +139,7 @@ export const useProducts = (
       action: 'stock_out',
       quantity: data.quantity,
       notes: data.notes || 'Stock removed',
-      issuedTo: data.issuedTo,
+      contactPerson: data.contactPerson,
       date: data.date,
     });
     // Reload products to reflect changes
@@ -148,5 +177,8 @@ export const useProducts = (
     goToPage,
     pageSize,
     loading,
+    filters,
+    applyFilters,
+    reloadProducts: loadProducts,
   };
 };

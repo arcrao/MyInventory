@@ -61,7 +61,7 @@ export const importFromCSV = async (
   file: File,
   categories: Category[],
   locations: Location[],
-  onProductAdd: (product: ProductFormData) => Promise<void>
+  onProductAdd: (product: ProductFormData, skipReload?: boolean) => Promise<void>
 ): Promise<ImportResult> => {
   const result: ImportResult = {
     success: true,
@@ -130,7 +130,7 @@ export const importFromCSV = async (
           unitOfMeasure: unitOfMeasure?.trim() || 'pcs'
         };
 
-        await onProductAdd(product);
+        await onProductAdd(product, true); // skipReload=true during bulk import
         result.imported++;
       } catch (error) {
         result.errors.push(`Row ${rowNumber}: ${error instanceof Error ? error.message : 'Unknown error'}`);

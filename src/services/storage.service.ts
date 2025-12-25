@@ -12,14 +12,24 @@ export class StorageService {
   }
 
   // Products
-  static async getProducts(page?: number, pageSize: number = 50): Promise<Product[]> {
+  static async getProducts(page?: number, pageSize: number = 50, categoryId?: string, searchTerm?: string): Promise<Product[]> {
     try {
-      console.log('[StorageService] Fetching products, page:', page);
+      console.log('[StorageService] Fetching products, page:', page, 'category:', categoryId, 'search:', searchTerm);
       // All authenticated users can view all products (no user_id filter)
       let query = supabase
         .from('products')
         .select('*')
         .order('created_at', { ascending: false });
+
+      // Add category filter if provided
+      if (categoryId) {
+        query = query.eq('category_id', categoryId);
+      }
+
+      // Add search filter if provided
+      if (searchTerm && searchTerm.trim()) {
+        query = query.or(`name.ilike.%${searchTerm}%,sku.ilike.%${searchTerm}%,brand.ilike.%${searchTerm}%`);
+      }
 
       // Add pagination if page is provided
       if (page !== undefined && page >= 0) {
@@ -58,12 +68,24 @@ export class StorageService {
     }
   }
 
-  static async getProductsCount(): Promise<number> {
+  static async getProductsCount(categoryId?: string, searchTerm?: string): Promise<number> {
     try {
       // All authenticated users can view all products (no user_id filter)
-      const { count, error } = await supabase
+      let query = supabase
         .from('products')
         .select('*', { count: 'exact', head: true });
+
+      // Add category filter if provided
+      if (categoryId) {
+        query = query.eq('category_id', categoryId);
+      }
+
+      // Add search filter if provided
+      if (searchTerm && searchTerm.trim()) {
+        query = query.or(`name.ilike.%${searchTerm}%,sku.ilike.%${searchTerm}%,brand.ilike.%${searchTerm}%`);
+      }
+
+      const { count, error } = await query;
 
       if (error) throw error;
       return count || 0;
@@ -306,16 +328,76 @@ export class StorageService {
   }
 
   // History
-  static async getHistory(): Promise<HistoryEntry[]> {
+  static async getHistory(page?: number, pageSize: number = 50, searchTerm?: string): Promise<HistoryEntry[]> {
     try {
-      // All authenticated users can view all history (no user_id filter)
-      const { data, error } = await supabase
+      console.log('[StorageService] Fetching history, page:', page, 'search:', searchTerm);
+
+      // If there's a search term, we need to fetch with product and category data
+      // and filter client-side since Supabase doesn't support complex OR queries across JOINs
+      if (searchTerm && searchTerm.trim()) {
+        // Fetch history with product and category joins
+        const { data: historyData, error: historyError } = await supabase
+          .from('history')
+          .select(`
+            *,
+            products!inner(name, category_id, categories(name))
+          `)
+          .order('created_at', { ascending: false });
+
+        if (historyError) throw historyError;
+
+        // Filter client-side to include product name and category name in search
+        const searchLower = searchTerm.toLowerCase();
+        const filtered = (historyData || []).filter(item => {
+          const productName = item.products?.name?.toLowerCase() || '';
+          const categoryName = item.products?.categories?.name?.toLowerCase() || '';
+          const notes = item.notes?.toLowerCase() || '';
+          const contactPerson = item.contact_person?.toLowerCase() || '';
+
+          return (
+            productName.includes(searchLower) ||
+            categoryName.includes(searchLower) ||
+            notes.includes(searchLower) ||
+            contactPerson.includes(searchLower)
+          );
+        });
+
+        // Apply pagination client-side
+        const from = page !== undefined && page >= 0 ? page * pageSize : 0;
+        const to = page !== undefined && page >= 0 ? from + pageSize : filtered.length;
+        const paginated = filtered.slice(from, to);
+
+        return paginated.map(item => ({
+          id: item.id,
+          productId: item.product_id,
+          action: item.action as 'created' | 'stock_in' | 'stock_out' | 'deleted' | 'updated',
+          quantity: item.quantity,
+          notes: item.notes || '',
+          timestamp: item.created_at,
+          contactPerson: item.contact_person,
+          pricePerUnit: item.price_per_unit ? parseFloat(item.price_per_unit) : undefined,
+          date: item.date
+        }));
+      }
+
+      // No search term - use efficient server-side query
+      let query = supabase
         .from('history')
         .select('*')
         .order('created_at', { ascending: false });
 
+      // Add pagination if page is provided
+      if (page !== undefined && page >= 0) {
+        const from = page * pageSize;
+        const to = from + pageSize - 1;
+        query = query.range(from, to);
+      }
+
+      const { data, error } = await query;
+
       if (error) throw error;
 
+      console.log('[StorageService] Fetched history:', data?.length || 0, 'items');
       return (data || []).map(item => ({
         id: item.id,
         productId: item.product_id,
@@ -323,14 +405,59 @@ export class StorageService {
         quantity: item.quantity,
         notes: item.notes || '',
         timestamp: item.created_at,
-        receivedBy: item.received_by,
+        contactPerson: item.contact_person,
         pricePerUnit: item.price_per_unit ? parseFloat(item.price_per_unit) : undefined,
-        issuedTo: item.issued_to,
         date: item.date
       }));
     } catch (error) {
       console.error('Error getting history:', error);
       return [];
+    }
+  }
+
+  static async getHistoryCount(searchTerm?: string): Promise<number> {
+    try {
+      // If there's a search term, we need to fetch all data and count client-side
+      // because we're searching across joined tables
+      if (searchTerm && searchTerm.trim()) {
+        const { data: historyData, error } = await supabase
+          .from('history')
+          .select(`
+            *,
+            products!inner(name, category_id, categories(name))
+          `);
+
+        if (error) throw error;
+
+        // Filter client-side to include product name and category name in search
+        const searchLower = searchTerm.toLowerCase();
+        const filtered = (historyData || []).filter(item => {
+          const productName = item.products?.name?.toLowerCase() || '';
+          const categoryName = item.products?.categories?.name?.toLowerCase() || '';
+          const notes = item.notes?.toLowerCase() || '';
+          const contactPerson = item.contact_person?.toLowerCase() || '';
+
+          return (
+            productName.includes(searchLower) ||
+            categoryName.includes(searchLower) ||
+            notes.includes(searchLower) ||
+            contactPerson.includes(searchLower)
+          );
+        });
+
+        return filtered.length;
+      }
+
+      // No search term - use server-side count
+      const { count, error } = await supabase
+        .from('history')
+        .select('*', { count: 'exact', head: true });
+
+      if (error) throw error;
+      return count || 0;
+    } catch (error) {
+      console.error('Error getting history count:', error);
+      return 0;
     }
   }
 
@@ -349,9 +476,8 @@ export class StorageService {
           action: entry.action,
           quantity: entry.quantity,
           notes: entry.notes,
-          received_by: entry.receivedBy,
+          contact_person: entry.contactPerson,
           price_per_unit: entry.pricePerUnit,
-          issued_to: entry.issuedTo,
           date: entry.date
         });
 
