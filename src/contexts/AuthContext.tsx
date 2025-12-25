@@ -78,7 +78,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signOut = async () => {
+    console.log('[AuthContext] Signing out...');
+    setUser(null);
+    setSession(null);
     await supabase.auth.signOut();
+    // Force a page reload to clear all state
+    window.location.reload();
   };
 
   const value = {

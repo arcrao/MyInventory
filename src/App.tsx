@@ -14,21 +14,15 @@ import { useLocations } from './hooks/useLocations';
 import { useHistory } from './hooks/useHistory';
 import { Product, TabType } from './types';
 
-const App: React.FC = () => {
-  const { user, loading } = useAuth();
+// Separate component for authenticated app to ensure clean remount on auth changes
+const AuthenticatedApp: React.FC<{ user: any }> = ({ user }) => {
+  console.log('[AuthenticatedApp] Mounting with user:', { id: user.id, email: user.email });
+
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
   const [showProductForm, setShowProductForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [showStockAdjustment, setShowStockAdjustment] = useState(false);
   const [adjustingProduct, setAdjustingProduct] = useState<Product | null>(null);
-
-  // Debug: Log auth state and data loading
-  useEffect(() => {
-    console.log('[App] Auth state:', {
-      user: user ? { id: user.id, email: user.email, provider: user.app_metadata?.provider } : null,
-      loading
-    });
-  }, [user, loading]);
 
   const {
     history,
@@ -59,30 +53,13 @@ const App: React.FC = () => {
 
   // Debug: Log data state
   useEffect(() => {
-    console.log('[App] Data loaded:', {
+    console.log('[AuthenticatedApp] Data loaded:', {
       products: products.length,
       categories: categories.length,
       locations: locations.length,
       history: history.length
     });
   }, [products, categories, locations, history]);
-
-  // Show loading state while checking authentication
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Show auth form if not authenticated
-  if (!user) {
-    return <AuthForm />;
-  }
 
   const handleAddProduct = () => {
     setEditingProduct(null);
@@ -236,6 +213,40 @@ const App: React.FC = () => {
       </div>
     </div>
   );
+};
+
+// Main App component that handles authentication routing
+const App: React.FC = () => {
+  const { user, loading } = useAuth();
+
+  // Debug: Log auth state
+  useEffect(() => {
+    console.log('[App] Auth state changed:', {
+      user: user ? { id: user.id, email: user.email, provider: user.app_metadata?.provider } : null,
+      loading
+    });
+  }, [user, loading]);
+
+  // Show loading state while checking authentication
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show auth form if not authenticated
+  if (!user) {
+    return <AuthForm />;
+  }
+
+  // Render authenticated app with key to force remount on user change
+  // This ensures hooks are properly reset when switching between auth methods
+  return <AuthenticatedApp key={user.id} user={user} />;
 };
 
 export default App;
