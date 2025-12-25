@@ -1,62 +1,101 @@
 import { Product, Category, Location } from '../types';
+import { StorageService } from '../services/storage.service';
 
-export const exportToCSV = (
-  products: Product[],
+export const exportToCSV = async (
   categories: Category[],
   locations: Location[]
-) => {
-  // Create CSV header
-  const headers = [
-    'Name',
-    'SKU',
-    'Quantity',
-    'Min Stock',
-    'Price',
-    'Category',
-    'Location',
-    'Description',
-    'Brand',
-    'Specification',
-    'Unit of Measure'
-  ];
+): Promise<void> => {
+  try {
+    // Fetch ALL products from Supabase (no pagination)
+    const allProducts = await StorageService.getProducts();
 
-  // Create category and location maps for lookup
-  const categoryMap = new Map(categories.map(c => [c.id, c.name]));
-  const locationMap = new Map(locations.map(l => [l.id, l.name]));
+    if (allProducts.length === 0) {
+      alert('No products to export');
+      return;
+    }
 
-  // Create CSV rows
-  const rows = products.map(product => [
-    escapeCSV(product.name),
-    escapeCSV(product.sku),
-    product.quantity,
-    product.minStock,
-    product.price,
-    escapeCSV(categoryMap.get(product.categoryId) || ''),
-    escapeCSV(locationMap.get(product.locationId) || ''),
-    escapeCSV(product.description),
-    escapeCSV(product.brand),
-    escapeCSV(product.specification),
-    escapeCSV(product.unitOfMeasure)
-  ]);
+    // Create category and location maps for lookup
+    const categoryMap = new Map(categories.map(c => [c.id, c.name]));
+    const locationMap = new Map(locations.map(l => [l.id, l.name]));
 
-  // Combine headers and rows
-  const csvContent = [
-    headers.join(','),
-    ...rows.map(row => row.join(','))
-  ].join('\n');
+    // Group products by category
+    const productsByCategory = new Map<string, Product[]>();
 
-  // Create and download file
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-  const link = document.createElement('a');
-  const url = URL.createObjectURL(blob);
+    allProducts.forEach(product => {
+      const categoryName = categoryMap.get(product.categoryId) || 'Uncategorized';
+      if (!productsByCategory.has(categoryName)) {
+        productsByCategory.set(categoryName, []);
+      }
+      productsByCategory.get(categoryName)!.push(product);
+    });
 
-  link.setAttribute('href', url);
-  link.setAttribute('download', `inventory-export-${new Date().toISOString().split('T')[0]}.csv`);
-  link.style.visibility = 'hidden';
+    // Sort categories alphabetically, but keep "Uncategorized" at the end
+    const sortedCategories = Array.from(productsByCategory.keys()).sort((a, b) => {
+      if (a === 'Uncategorized') return 1;
+      if (b === 'Uncategorized') return -1;
+      return a.localeCompare(b);
+    });
 
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+    // Create CSV content with category grouping
+    const csvLines: string[] = [];
+
+    // Add headers
+    const headers = [
+      'Category',
+      'Name',
+      'SKU',
+      'Quantity',
+      'Min Stock',
+      'Price',
+      'Location',
+      'Description',
+      'Brand',
+      'Specification',
+      'Unit of Measure'
+    ];
+    csvLines.push(headers.join(','));
+
+    // Add products grouped by category
+    sortedCategories.forEach(categoryName => {
+      const products = productsByCategory.get(categoryName)!;
+
+      products.forEach(product => {
+        const row = [
+          escapeCSV(categoryName),
+          escapeCSV(product.name),
+          escapeCSV(product.sku),
+          product.quantity,
+          product.minStock,
+          product.price,
+          escapeCSV(locationMap.get(product.locationId) || ''),
+          escapeCSV(product.description),
+          escapeCSV(product.brand),
+          escapeCSV(product.specification),
+          escapeCSV(product.unitOfMeasure)
+        ];
+        csvLines.push(row.join(','));
+      });
+    });
+
+    // Create and download file
+    const csvContent = csvLines.join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+
+    link.setAttribute('href', url);
+    link.setAttribute('download', `inventory-export-${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error('Error exporting data:', error);
+    alert('Failed to export data. Please try again.');
+  }
 };
 
 // Helper function to escape CSV fields

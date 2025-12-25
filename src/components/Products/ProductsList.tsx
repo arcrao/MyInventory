@@ -58,8 +58,8 @@ export const ProductsList: React.FC<ProductsListProps> = ({
     });
   }, [products, filters]);
 
-  const handleExport = () => {
-    exportToCSV(products, categories, locations);
+  const handleExport = async () => {
+    await exportToCSV(categories, locations);
   };
 
   const handleImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
