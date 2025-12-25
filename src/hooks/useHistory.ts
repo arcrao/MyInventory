@@ -5,14 +5,18 @@ import { StorageService } from '../services/storage.service';
 export const useHistory = () => {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
 
+  const loadHistory = async () => {
+    try {
+      const data = await StorageService.getHistory();
+      setHistory(data);
+    } catch (error) {
+      console.error('Error loading history:', error);
+    }
+  };
+
   useEffect(() => {
     loadHistory();
   }, []);
-
-  const loadHistory = async () => {
-    const data = await StorageService.getHistory();
-    setHistory(data);
-  };
 
   const addHistoryEntry = async (entry: Omit<HistoryEntry, 'id' | 'timestamp'>): Promise<void> => {
     await StorageService.addHistoryEntry(entry);

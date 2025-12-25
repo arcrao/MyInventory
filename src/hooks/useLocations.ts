@@ -5,14 +5,18 @@ import { StorageService } from '../services/storage.service';
 export const useLocations = () => {
   const [locations, setLocations] = useState<Location[]>([]);
 
+  const loadLocations = async () => {
+    try {
+      const data = await StorageService.getLocations();
+      setLocations(data);
+    } catch (error) {
+      console.error('Error loading locations:', error);
+    }
+  };
+
   useEffect(() => {
     loadLocations();
   }, []);
-
-  const loadLocations = async () => {
-    const data = await StorageService.getLocations();
-    setLocations(data);
-  };
 
   const addLocation = async (name: string): Promise<void> => {
     if (!name.trim()) return;

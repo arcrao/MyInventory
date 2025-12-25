@@ -15,24 +15,35 @@ export const useProducts = (onHistoryAdd: (entry: Omit<HistoryEntry, 'id' | 'tim
   const [products, setProducts] = useState<Product[]>([]);
   const [currentPage, setCurrentPage] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
+  const [loading, setLoading] = useState(true);
   const pageSize = 50;
 
-  useEffect(() => {
-    loadProducts();
-  }, [currentPage]);
-
   const loadProducts = async (page?: number) => {
-    const pageToLoad = page !== undefined ? page : currentPage;
-    const [data, count] = await Promise.all([
-      StorageService.getProducts(pageToLoad, pageSize),
-      StorageService.getProductsCount()
-    ]);
-    setProducts(data);
-    setTotalCount(count);
-    if (page !== undefined) {
-      setCurrentPage(page);
+    try {
+      console.log('[useProducts] Loading products, page:', page);
+      setLoading(true);
+      const pageToLoad = page !== undefined ? page : currentPage;
+      const [data, count] = await Promise.all([
+        StorageService.getProducts(pageToLoad, pageSize),
+        StorageService.getProductsCount()
+      ]);
+      console.log('[useProducts] Loaded products:', data.length, 'Total count:', count);
+      setProducts(data);
+      setTotalCount(count);
+      if (page !== undefined) {
+        setCurrentPage(page);
+      }
+    } catch (error) {
+      console.error('[useProducts] Error loading products:', error);
+    } finally {
+      setLoading(false);
     }
   };
+
+  useEffect(() => {
+    console.log('[useProducts] useEffect triggered, currentPage:', currentPage);
+    loadProducts();
+  }, [currentPage]);
 
   const addProduct = async (productData: ProductFormData): Promise<void> => {
     const newProduct = await StorageService.addProduct(productData);
@@ -127,5 +138,6 @@ export const useProducts = (onHistoryAdd: (entry: Omit<HistoryEntry, 'id' | 'tim
     totalCount,
     goToPage,
     pageSize,
+    loading,
   };
 };

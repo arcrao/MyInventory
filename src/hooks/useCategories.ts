@@ -5,14 +5,18 @@ import { StorageService } from '../services/storage.service';
 export const useCategories = () => {
   const [categories, setCategories] = useState<Category[]>([]);
 
+  const loadCategories = async () => {
+    try {
+      const data = await StorageService.getCategories();
+      setCategories(data);
+    } catch (error) {
+      console.error('Error loading categories:', error);
+    }
+  };
+
   useEffect(() => {
     loadCategories();
   }, []);
-
-  const loadCategories = async () => {
-    const data = await StorageService.getCategories();
-    setCategories(data);
-  };
 
   const addCategory = async (name: string): Promise<void> => {
     if (!name.trim()) return;

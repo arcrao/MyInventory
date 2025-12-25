@@ -14,6 +14,7 @@ export class StorageService {
   // Products
   static async getProducts(page?: number, pageSize: number = 50): Promise<Product[]> {
     try {
+      console.log('[StorageService] Fetching products, page:', page);
       // All authenticated users can view all products (no user_id filter)
       let query = supabase
         .from('products')
@@ -29,8 +30,12 @@ export class StorageService {
 
       const { data, error } = await query;
 
-      if (error) throw error;
+      if (error) {
+        console.error('[StorageService] Error fetching products:', error);
+        throw error;
+      }
 
+      console.log('[StorageService] Fetched products:', data?.length || 0, 'items');
       // Map database fields to application format
       return (data || []).map(item => ({
         id: item.id,
@@ -165,14 +170,19 @@ export class StorageService {
   // Categories
   static async getCategories(): Promise<Category[]> {
     try {
+      console.log('[StorageService] Fetching categories');
       // All authenticated users can view all categories (no user_id filter)
       const { data, error } = await supabase
         .from('categories')
         .select('*')
-        .order('name', { ascending: true });
+        .order('name', { ascending: true});
 
-      if (error) throw error;
+      if (error) {
+        console.error('[StorageService] Error fetching categories:', error);
+        throw error;
+      }
 
+      console.log('[StorageService] Fetched categories:', data?.length || 0, 'items');
       return (data || []).map(item => ({
         id: item.id,
         name: item.name
@@ -229,14 +239,19 @@ export class StorageService {
   // Locations
   static async getLocations(): Promise<Location[]> {
     try {
+      console.log('[StorageService] Fetching locations');
       // All authenticated users can view all locations (no user_id filter)
       const { data, error } = await supabase
         .from('locations')
         .select('*')
         .order('name', { ascending: true });
 
-      if (error) throw error;
+      if (error) {
+        console.error('[StorageService] Error fetching locations:', error);
+        throw error;
+      }
 
+      console.log('[StorageService] Fetched locations:', data?.length || 0, 'items');
       return (data || []).map(item => ({
         id: item.id,
         name: item.name
