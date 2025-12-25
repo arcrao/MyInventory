@@ -40,18 +40,19 @@ This guide will help you set up Supabase authentication for the MyInventory appl
 
    Replace `your_project_url_here` and `your_anon_key_here` with the actual values from Step 2.
 
-## Step 4: Configure Email Authentication (Optional)
+## Step 4: Configure Email Authentication
 
-By default, Supabase requires email confirmation for new signups. You can configure this:
+Since users are created by administrators, you should configure email settings:
 
 1. In your Supabase dashboard, go to "Authentication" > "Settings"
 2. Scroll down to "Email Auth"
 3. Configure the following options:
-   - **Enable email confirmations**: Toggle this based on your preference
-     - ON: Users must verify their email before signing in
-     - OFF: Users can sign in immediately after signup
+   - **Enable email confirmations**: Recommended OFF for admin-created users
+     - OFF: Users created by admins can sign in immediately
+     - ON: Users must verify their email before signing in (use if sending invite emails)
    - **Secure email change**: Recommended to keep ON
    - **Secure password change**: Recommended to keep ON
+4. Under "Auth Providers", disable "Enable email signup" to prevent self-registration
 
 ### Email Templates
 
@@ -122,23 +123,23 @@ npm run dev
 
 The application will start and you should see the authentication screen.
 
-## Testing Authentication
+## User Management
 
-### Sign Up
+**Important**: This application does not allow self-registration. Users must be created by administrators in the Supabase dashboard.
 
-1. Click the "Sign Up" tab
-2. Enter an email and password (minimum 6 characters)
-3. Click "Create Account"
-4. If email confirmation is enabled:
-   - Check your email for a confirmation link
-   - Click the link to verify your account
-   - Return to the app and sign in
-5. If email confirmation is disabled:
-   - You'll be signed in automatically
+### Creating Users (Administrators Only)
+
+1. In your Supabase dashboard, go to "Authentication" > "Users"
+2. Click "Add user" or "Invite user"
+3. Choose one of the following methods:
+   - **Create user**: Enter email and password, user can sign in immediately
+   - **Invite user**: Send an email invitation with a setup link
+4. The user will now be able to sign in to the application
 
 ### Sign In with Email
 
-1. Enter your email and password
+1. On the sign-in page, enter your email and password
+   - Your administrator must have created your account first
 2. Click "Sign In"
 3. You'll be redirected to the main inventory dashboard
 
@@ -149,6 +150,7 @@ The application will start and you should see the authentication screen.
 3. Select your Google account or sign in
 4. Grant the requested permissions
 5. You'll be redirected back to the app and automatically signed in
+   - Note: Your Google account must be added as a user in Supabase by an administrator first
 
 ### Sign Out
 
@@ -171,9 +173,10 @@ The application will start and you should see the authentication screen.
 
 ### "Invalid login credentials" Error
 
+- Verify that your administrator has created your user account in Supabase
 - Make sure you've confirmed your email if email confirmation is enabled
 - Check that you're using the correct email and password
-- Try resetting your password using the forgot password feature (if implemented)
+- Contact your administrator if you continue to have issues
 
 ### Google Sign-In Not Working
 
@@ -194,11 +197,12 @@ The application will start and you should see the authentication screen.
 
 ### Recommended Enhancements
 
-1. **Password Reset**: Add forgot password functionality
-2. **Row Level Security**: Configure RLS policies in Supabase to secure user data
-3. **User Profiles**: Create a user profiles table to store additional user information
-4. **Multi-tenant Support**: Link inventory data to specific users
-5. **Additional OAuth Providers**: Add more OAuth providers (GitHub, Facebook, Azure, etc.)
+1. **User Management UI**: Add an admin interface for managing users within the app
+2. **Password Reset**: Add forgot password functionality for users
+3. **Row Level Security**: Configure RLS policies in Supabase to secure user data
+4. **User Profiles**: Create a user profiles table to store additional user information (roles, permissions, etc.)
+5. **Multi-tenant Support**: Link inventory data to specific users
+6. **Additional OAuth Providers**: Add more OAuth providers (GitHub, Facebook, Azure, etc.)
    - Google OAuth is already implemented! See Step 5 for setup instructions.
 
 ### Row Level Security (RLS) Example

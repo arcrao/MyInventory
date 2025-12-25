@@ -4,7 +4,7 @@ A comprehensive Inventory Management System built with React, TypeScript, and Ta
 
 ## Features
 
-- **User Authentication**: Secure authentication powered by Supabase
+- **User Authentication**: Secure authentication powered by Supabase (admin-managed users)
 - **Dashboard**: Real-time overview of inventory metrics, low stock alerts, and category statistics
 - **Product Management**: Add, edit, and delete products with detailed information
 - **Stock Tracking**: Monitor stock levels with automatic low stock alerts
@@ -19,7 +19,7 @@ MyInventory/
 ├── src/
 │   ├── components/           # React components organized by feature
 │   │   ├── Auth/
-│   │   │   └── AuthForm.tsx           # Login/signup authentication form
+│   │   │   └── AuthForm.tsx           # Login authentication form
 │   │   ├── Dashboard/
 │   │   │   └── Dashboard.tsx         # Main dashboard with metrics
 │   │   ├── Products/
@@ -139,19 +139,23 @@ The project uses:
 
 ## Usage
 
-1. **First Time Setup**:
+1. **Administrator Setup**:
+   - Users must be created by administrators in Supabase
+   - See [SUPABASE_SETUP.md](./SUPABASE_SETUP.md) for user management instructions
+
+2. **First Time User Setup**:
    - Navigate to Settings tab
    - Add categories (e.g., Electronics, Furniture)
    - Add locations (e.g., Warehouse A, Store Room)
 
-2. **Adding Products**:
+3. **Adding Products**:
    - Go to Products tab
    - Click "Add Product"
    - Fill in product details
    - Select category and location
    - Set minimum stock level for alerts
 
-3. **Managing Inventory**:
+4. **Managing Inventory**:
    - View dashboard for quick overview
    - Update quantities to trigger history logs
    - Monitor low stock alerts
