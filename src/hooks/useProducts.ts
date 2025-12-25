@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Product, ProductFormData, HistoryEntry } from '../types';
 import { StorageService } from '../services/storage.service';
+import { User } from '@supabase/supabase-js';
 
 interface StockAdjustmentData {
   quantity: number;
@@ -11,7 +12,10 @@ interface StockAdjustmentData {
   date: string;
 }
 
-export const useProducts = (onHistoryAdd: (entry: Omit<HistoryEntry, 'id' | 'timestamp'>) => Promise<void>) => {
+export const useProducts = (
+  onHistoryAdd: (entry: Omit<HistoryEntry, 'id' | 'timestamp'>) => Promise<void>,
+  user: User | null
+) => {
   const [products, setProducts] = useState<Product[]>([]);
   const [currentPage, setCurrentPage] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
@@ -19,6 +23,11 @@ export const useProducts = (onHistoryAdd: (entry: Omit<HistoryEntry, 'id' | 'tim
   const pageSize = 50;
 
   const loadProducts = async (page?: number) => {
+    if (!user) {
+      console.log('[useProducts] No user, skipping load');
+      return;
+    }
+
     try {
       console.log('[useProducts] Loading products, page:', page);
       setLoading(true);
@@ -41,9 +50,9 @@ export const useProducts = (onHistoryAdd: (entry: Omit<HistoryEntry, 'id' | 'tim
   };
 
   useEffect(() => {
-    console.log('[useProducts] useEffect triggered, currentPage:', currentPage);
+    console.log('[useProducts] useEffect triggered, user:', !!user, 'currentPage:', currentPage);
     loadProducts();
-  }, [currentPage]);
+  }, [user, currentPage]);
 
   const addProduct = async (productData: ProductFormData): Promise<void> => {
     const newProduct = await StorageService.addProduct(productData);

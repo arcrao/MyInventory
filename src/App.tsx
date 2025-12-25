@@ -22,7 +22,7 @@ const App: React.FC = () => {
   const [showStockAdjustment, setShowStockAdjustment] = useState(false);
   const [adjustingProduct, setAdjustingProduct] = useState<Product | null>(null);
 
-  const { history, addHistoryEntry } = useHistory();
+  const { history, addHistoryEntry } = useHistory(user);
   const {
     products,
     addProduct,
@@ -34,9 +34,9 @@ const App: React.FC = () => {
     totalPages,
     totalCount,
     goToPage
-  } = useProducts(addHistoryEntry);
-  const { categories, addCategory, deleteCategory } = useCategories();
-  const { locations, addLocation, deleteLocation } = useLocations();
+  } = useProducts(addHistoryEntry, user);
+  const { categories, addCategory, deleteCategory } = useCategories(user);
+  const { locations, addLocation, deleteLocation } = useLocations(user);
 
   // Show loading state while checking authentication
   if (loading) {
