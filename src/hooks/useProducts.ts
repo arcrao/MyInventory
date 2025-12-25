@@ -23,20 +23,15 @@ export const useProducts = (
   const pageSize = 50;
 
   const loadProducts = async (page?: number, newFilters?: { searchTerm: string; categoryId: string }) => {
-    console.log('[useProducts] loadProducts called, user:', user ? { id: user.id, email: user.email } : null);
-
     if (!user) {
-      console.log('[useProducts] No user, skipping load');
       return;
     }
 
     try {
-      console.log('[useProducts] Starting to load products, page:', page);
       setLoading(true);
       const pageToLoad = page !== undefined ? page : currentPage;
       const filtersToUse = newFilters || filters;
 
-      console.log('[useProducts] Calling StorageService.getProducts...');
       const [data, count] = await Promise.all([
         StorageService.getProducts(
           pageToLoad,
@@ -49,7 +44,6 @@ export const useProducts = (
           filtersToUse.searchTerm || undefined
         )
       ]);
-      console.log('[useProducts] Loaded products:', data.length, 'Total count:', count);
       setProducts(data);
       setTotalCount(count);
       if (page !== undefined) {
@@ -59,7 +53,7 @@ export const useProducts = (
         setFilters(newFilters);
       }
     } catch (error) {
-      console.error('[useProducts] Error loading products:', error);
+      console.error('Error loading products:', error);
     } finally {
       setLoading(false);
     }
@@ -71,12 +65,6 @@ export const useProducts = (
   };
 
   useEffect(() => {
-    console.log('[useProducts] useEffect triggered', {
-      hasUser: !!user,
-      userId: user?.id,
-      userEmail: user?.email,
-      currentPage
-    });
     loadProducts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, currentPage]);
