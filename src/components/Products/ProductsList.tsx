@@ -198,7 +198,7 @@ export const ProductsList: React.FC<ProductsListProps> = ({
                 <td className="px-4 py-3 text-right font-medium">
                   {product.quantity} {product.unitOfMeasure || 'pcs'}
                 </td>
-                <td className="px-4 py-3 text-right">{product.price.toFixed(2)}</td>
+                <td className="px-4 py-3 text-right">₹{product.price.toFixed(2)}</td>
                 <td className="px-4 py-3 text-right">
                   <button
                     onClick={() => onStockAdjust(product)}
