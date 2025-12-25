@@ -7,6 +7,7 @@ export const STORAGE_KEYS = {
 
 export const UNITS_OF_MEASURE = [
   { value: 'pcs', label: 'Pieces (pcs)' },
+  { value: 'cans', label: 'Cans (cans)' },
   { value: 'kg', label: 'Kilograms (kg)' },
   { value: 'g', label: 'Grams (g)' },
   { value: 'lbs', label: 'Pounds (lbs)' },
