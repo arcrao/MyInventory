@@ -10,7 +10,7 @@ export const UNITS_OF_MEASURE = [
   { value: 'cans', label: 'Cans (cans)' },
   { value: 'kg', label: 'Kilograms (kg)' },
   { value: 'g', label: 'Grams (g)' },
-  { value: 'lbs', label: 'Pounds (lbs)' },
+  { value: 'nos', label: "Numbers (No's)" },
   { value: 'l', label: 'Liters (l)' },
   { value: 'ml', label: 'Milliliters (ml)' },
   { value: 'm', label: 'Meters (m)' },
