@@ -113,9 +113,9 @@ ALTER TABLE products ENABLE ROW LEVEL SECURITY;
 ALTER TABLE history ENABLE ROW LEVEL SECURITY;
 
 -- User Roles Policies
-CREATE POLICY "Anyone can view user roles"
+CREATE POLICY "Authenticated users can view user roles"
   ON user_roles FOR SELECT
-  USING (true);
+  USING (auth.uid() IS NOT NULL);
 
 CREATE POLICY "Only admins can insert user roles"
   ON user_roles FOR INSERT
