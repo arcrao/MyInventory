@@ -7,22 +7,31 @@ export const useCategories = (user: User | null) => {
   const [categories, setCategories] = useState<Category[]>([]);
 
   const loadCategories = async () => {
+    console.log('[useCategories] loadCategories called, user:', user ? { id: user.id, email: user.email } : null);
+
     if (!user) {
       console.log('[useCategories] No user, skipping load');
       return;
     }
 
     try {
+      console.log('[useCategories] Calling StorageService.getCategories...');
       const data = await StorageService.getCategories();
+      console.log('[useCategories] Loaded categories:', data.length);
       setCategories(data);
     } catch (error) {
-      console.error('Error loading categories:', error);
+      console.error('[useCategories] Error loading categories:', error);
     }
   };
 
   useEffect(() => {
-    console.log('[useCategories] useEffect triggered, user:', !!user);
+    console.log('[useCategories] useEffect triggered', {
+      hasUser: !!user,
+      userId: user?.id,
+      userEmail: user?.email
+    });
     loadCategories();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const addCategory = async (name: string): Promise<void> => {
