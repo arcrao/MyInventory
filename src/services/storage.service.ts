@@ -12,14 +12,23 @@ export class StorageService {
   }
 
   // Products
-  static async getProducts(): Promise<Product[]> {
+  static async getProducts(page?: number, pageSize: number = 50): Promise<Product[]> {
     try {
       const userId = await this.getUserId();
-      const { data, error } = await supabase
+      let query = supabase
         .from('products')
         .select('*')
         .eq('user_id', userId)
         .order('created_at', { ascending: false });
+
+      // Add pagination if page is provided
+      if (page !== undefined && page >= 0) {
+        const from = page * pageSize;
+        const to = from + pageSize - 1;
+        query = query.range(from, to);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
 
@@ -42,6 +51,22 @@ export class StorageService {
     } catch (error) {
       console.error('Error getting products:', error);
       return [];
+    }
+  }
+
+  static async getProductsCount(): Promise<number> {
+    try {
+      const userId = await this.getUserId();
+      const { count, error } = await supabase
+        .from('products')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId);
+
+      if (error) throw error;
+      return count || 0;
+    } catch (error) {
+      console.error('Error getting products count:', error);
+      return 0;
     }
   }
 

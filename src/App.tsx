@@ -23,7 +23,18 @@ const App: React.FC = () => {
   const [adjustingProduct, setAdjustingProduct] = useState<Product | null>(null);
 
   const { history, addHistoryEntry } = useHistory();
-  const { products, addProduct, updateProduct, stockIn, stockOut, deleteProduct } = useProducts(addHistoryEntry);
+  const {
+    products,
+    addProduct,
+    updateProduct,
+    stockIn,
+    stockOut,
+    deleteProduct,
+    currentPage,
+    totalPages,
+    totalCount,
+    goToPage
+  } = useProducts(addHistoryEntry);
   const { categories, addCategory, deleteCategory } = useCategories();
   const { locations, addLocation, deleteLocation } = useLocations();
 
@@ -143,6 +154,11 @@ const App: React.FC = () => {
             onEditProduct={handleEditProduct}
             onDeleteProduct={deleteProduct}
             onStockAdjust={handleStockAdjust}
+            onProductAdd={addProduct}
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalCount={totalCount}
+            onPageChange={goToPage}
           />
         )}
         {activeTab === 'history' && <HistoryView history={history} products={products} />}
