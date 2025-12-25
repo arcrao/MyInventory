@@ -1,18 +1,29 @@
 import { useState, useEffect } from 'react';
 import { HistoryEntry } from '../types';
 import { StorageService } from '../services/storage.service';
+import { User } from '@supabase/supabase-js';
 
-export const useHistory = () => {
+export const useHistory = (user: User | null) => {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
 
-  useEffect(() => {
-    loadHistory();
-  }, []);
-
   const loadHistory = async () => {
-    const data = await StorageService.getHistory();
-    setHistory(data);
+    if (!user) {
+      console.log('[useHistory] No user, skipping load');
+      return;
+    }
+
+    try {
+      const data = await StorageService.getHistory();
+      setHistory(data);
+    } catch (error) {
+      console.error('Error loading history:', error);
+    }
   };
+
+  useEffect(() => {
+    console.log('[useHistory] useEffect triggered, user:', !!user);
+    loadHistory();
+  }, [user]);
 
   const addHistoryEntry = async (entry: Omit<HistoryEntry, 'id' | 'timestamp'>): Promise<void> => {
     await StorageService.addHistoryEntry(entry);

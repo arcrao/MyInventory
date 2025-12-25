@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Product, ProductFormData, HistoryEntry } from '../types';
 import { StorageService } from '../services/storage.service';
+import { User } from '@supabase/supabase-js';
 
 interface StockAdjustmentData {
   quantity: number;
@@ -11,42 +12,72 @@ interface StockAdjustmentData {
   date: string;
 }
 
-export const useProducts = (onHistoryAdd: (entry: Omit<HistoryEntry, 'id' | 'timestamp'>) => Promise<void>) => {
+export const useProducts = (
+  onHistoryAdd: (entry: Omit<HistoryEntry, 'id' | 'timestamp'>) => Promise<void>,
+  user: User | null
+) => {
   const [products, setProducts] = useState<Product[]>([]);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const pageSize = 50;
+
+  const loadProducts = async (page?: number) => {
+    if (!user) {
+      console.log('[useProducts] No user, skipping load');
+      return;
+    }
+
+    try {
+      console.log('[useProducts] Loading products, page:', page);
+      setLoading(true);
+      const pageToLoad = page !== undefined ? page : currentPage;
+      const [data, count] = await Promise.all([
+        StorageService.getProducts(pageToLoad, pageSize),
+        StorageService.getProductsCount()
+      ]);
+      console.log('[useProducts] Loaded products:', data.length, 'Total count:', count);
+      setProducts(data);
+      setTotalCount(count);
+      if (page !== undefined) {
+        setCurrentPage(page);
+      }
+    } catch (error) {
+      console.error('[useProducts] Error loading products:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
+    console.log('[useProducts] useEffect triggered, user:', !!user, 'currentPage:', currentPage);
     loadProducts();
-  }, []);
-
-  const loadProducts = async () => {
-    const data = await StorageService.getProducts();
-    setProducts(data);
-  };
+  }, [user, currentPage]);
 
   const addProduct = async (productData: ProductFormData): Promise<void> => {
     const newProduct = await StorageService.addProduct(productData);
     if (newProduct) {
-      setProducts([...products, newProduct]);
       await onHistoryAdd({
         productId: newProduct.id,
         action: 'created',
         quantity: productData.quantity,
         notes: 'Product created',
       });
+      // Reload products to reflect changes
+      await loadProducts();
     }
   };
 
   const updateProduct = async (updatedProduct: Product): Promise<void> => {
     await StorageService.updateProduct(updatedProduct.id, updatedProduct);
-    setProducts(products.map(p =>
-      p.id === updatedProduct.id ? updatedProduct : p
-    ));
     await onHistoryAdd({
       productId: updatedProduct.id,
       action: 'updated',
       quantity: 0,
       notes: 'Product details updated',
     });
+    // Reload products to reflect changes
+    await loadProducts();
   };
 
   const stockIn = async (productId: number, data: StockAdjustmentData): Promise<void> => {
@@ -55,7 +86,6 @@ export const useProducts = (onHistoryAdd: (entry: Omit<HistoryEntry, 'id' | 'tim
 
     const updatedProduct = { ...product, quantity: product.quantity + data.quantity };
     await StorageService.updateProduct(productId, { quantity: updatedProduct.quantity });
-    setProducts(products.map(p => p.id === productId ? updatedProduct : p));
     await onHistoryAdd({
       productId,
       action: 'stock_in',
@@ -65,6 +95,8 @@ export const useProducts = (onHistoryAdd: (entry: Omit<HistoryEntry, 'id' | 'tim
       pricePerUnit: data.pricePerUnit,
       date: data.date,
     });
+    // Reload products to reflect changes
+    await loadProducts();
   };
 
   const stockOut = async (productId: number, data: StockAdjustmentData): Promise<void> => {
@@ -73,7 +105,6 @@ export const useProducts = (onHistoryAdd: (entry: Omit<HistoryEntry, 'id' | 'tim
 
     const updatedProduct = { ...product, quantity: product.quantity - data.quantity };
     await StorageService.updateProduct(productId, { quantity: updatedProduct.quantity });
-    setProducts(products.map(p => p.id === productId ? updatedProduct : p));
     await onHistoryAdd({
       productId,
       action: 'stock_out',
@@ -82,18 +113,27 @@ export const useProducts = (onHistoryAdd: (entry: Omit<HistoryEntry, 'id' | 'tim
       issuedTo: data.issuedTo,
       date: data.date,
     });
+    // Reload products to reflect changes
+    await loadProducts();
   };
 
   const deleteProduct = async (id: number): Promise<void> => {
     await StorageService.deleteProduct(id);
-    setProducts(products.filter(p => p.id !== id));
     await onHistoryAdd({
       productId: id,
       action: 'deleted',
       quantity: 0,
       notes: 'Product deleted',
     });
+    // Reload products to reflect changes
+    await loadProducts();
   };
+
+  const goToPage = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const totalPages = Math.ceil(totalCount / pageSize);
 
   return {
     products,
@@ -102,5 +142,11 @@ export const useProducts = (onHistoryAdd: (entry: Omit<HistoryEntry, 'id' | 'tim
     stockIn,
     stockOut,
     deleteProduct,
+    currentPage,
+    totalPages,
+    totalCount,
+    goToPage,
+    pageSize,
+    loading,
   };
 };
