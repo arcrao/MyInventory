@@ -72,7 +72,7 @@ export const useProducts = (
     loadProducts();
   }, [user, currentPage]);
 
-  const addProduct = async (productData: ProductFormData): Promise<void> => {
+  const addProduct = async (productData: ProductFormData, skipReload: boolean = false): Promise<void> => {
     const newProduct = await StorageService.addProduct(productData);
     if (newProduct) {
       await onHistoryAdd({
@@ -81,8 +81,10 @@ export const useProducts = (
         quantity: productData.quantity,
         notes: 'Product created',
       });
-      // Reload products to reflect changes
-      await loadProducts();
+      // Reload products to reflect changes (skip for bulk import)
+      if (!skipReload) {
+        await loadProducts();
+      }
     }
   };
 
@@ -168,5 +170,6 @@ export const useProducts = (
     loading,
     filters,
     applyFilters,
+    reloadProducts: loadProducts,
   };
 };

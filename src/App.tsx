@@ -44,6 +44,7 @@ const App: React.FC = () => {
     totalCount,
     goToPage,
     applyFilters,
+    reloadProducts,
   } = useProducts(addHistoryEntry, user);
   const { categories, addCategory, deleteCategory } = useCategories(user);
   const { locations, addLocation, deleteLocation } = useLocations(user);
@@ -165,6 +166,7 @@ const App: React.FC = () => {
             onDeleteProduct={deleteProduct}
             onStockAdjust={handleStockAdjust}
             onProductAdd={addProduct}
+            onReloadProducts={reloadProducts}
             currentPage={currentPage}
             totalPages={totalPages}
             totalCount={totalCount}

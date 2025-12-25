@@ -15,7 +15,8 @@ interface ProductsListProps {
   onEditProduct: (product: Product) => void;
   onDeleteProduct: (id: number) => void;
   onStockAdjust: (product: Product) => void;
-  onProductAdd?: (product: ProductFormData) => Promise<void>;
+  onProductAdd?: (product: ProductFormData, skipReload?: boolean) => Promise<void>;
+  onReloadProducts?: () => Promise<void>;
   currentPage?: number;
   totalPages?: number;
   totalCount?: number;
@@ -32,6 +33,7 @@ export const ProductsList: React.FC<ProductsListProps> = ({
   onDeleteProduct,
   onStockAdjust,
   onProductAdd,
+  onReloadProducts,
   currentPage = 0,
   totalPages = 1,
   totalCount = 0,
@@ -64,6 +66,11 @@ export const ProductsList: React.FC<ProductsListProps> = ({
 
     try {
       const result = await importFromCSV(file, categories, locations, onProductAdd);
+
+      // Reload products after import completes
+      if (result.imported > 0 && onReloadProducts) {
+        await onReloadProducts();
+      }
 
       if (result.success) {
         setImportSuccess(`Successfully imported ${result.imported} products`);
