@@ -64,7 +64,49 @@ You can customize the email templates sent to users:
    - Change Email Address
    - Reset Password
 
-## Step 5: Install Dependencies
+## Step 5: Configure Google OAuth (Optional)
+
+To enable Google sign-in, you'll need to set up OAuth credentials with Google and configure them in Supabase.
+
+### 5.1: Create Google OAuth Credentials
+
+1. Go to the [Google Cloud Console](https://console.cloud.google.com/)
+2. Create a new project or select an existing one
+3. Navigate to "APIs & Services" > "Credentials"
+4. Click "Create Credentials" > "OAuth client ID"
+5. If prompted, configure the OAuth consent screen:
+   - Choose "External" user type
+   - Fill in the required fields (App name, User support email, Developer contact)
+   - Add scopes: `email` and `profile`
+   - Add test users if needed (for development)
+6. For "Application type", select "Web application"
+7. Add authorized redirect URIs:
+   - Format: `https://<your-project-ref>.supabase.co/auth/v1/callback`
+   - You can find your project reference in Supabase under Settings > API
+   - Example: `https://abcdefghijklmnop.supabase.co/auth/v1/callback`
+   - For local development, you may also need to add your local URL
+8. Click "Create" and save your **Client ID** and **Client Secret**
+
+### 5.2: Configure Google OAuth in Supabase
+
+1. In your Supabase dashboard, go to "Authentication" > "Providers"
+2. Find "Google" in the list of providers
+3. Enable the Google provider
+4. Enter your Google OAuth credentials:
+   - **Client ID**: Paste the Client ID from Google
+   - **Client Secret**: Paste the Client Secret from Google
+5. Click "Save"
+
+### 5.3: Additional Configuration (Optional)
+
+- **Allowed redirect URLs**: By default, Supabase allows redirects to your site URL
+- You can customize the redirect URL in the application code if needed
+- For production, make sure to:
+  - Update your Google OAuth consent screen to "Production" status
+  - Add your production domain to authorized redirect URIs
+  - Update Supabase site URL in Settings > API
+
+## Step 6: Install Dependencies
 
 The Supabase client library has already been installed. If you need to reinstall:
 
@@ -72,7 +114,7 @@ The Supabase client library has already been installed. If you need to reinstall
 npm install @supabase/supabase-js
 ```
 
-## Step 6: Run the Application
+## Step 7: Run the Application
 
 ```bash
 npm run dev
@@ -94,11 +136,19 @@ The application will start and you should see the authentication screen.
 5. If email confirmation is disabled:
    - You'll be signed in automatically
 
-### Sign In
+### Sign In with Email
 
 1. Enter your email and password
 2. Click "Sign In"
 3. You'll be redirected to the main inventory dashboard
+
+### Sign In with Google
+
+1. Click the "Continue with Google" button
+2. You'll be redirected to Google's sign-in page
+3. Select your Google account or sign in
+4. Grant the requested permissions
+5. You'll be redirected back to the app and automatically signed in
 
 ### Sign Out
 
@@ -125,6 +175,14 @@ The application will start and you should see the authentication screen.
 - Check that you're using the correct email and password
 - Try resetting your password using the forgot password feature (if implemented)
 
+### Google Sign-In Not Working
+
+1. Verify that Google OAuth is enabled in Supabase Authentication > Providers
+2. Check that your Google Client ID and Secret are correct
+3. Ensure your redirect URI in Google Cloud Console matches your Supabase project URL
+4. Make sure your Google OAuth consent screen is configured properly
+5. Clear your browser cache and cookies, then try again
+
 ## Security Notes
 
 - Never commit your `.env` file to version control (it's already in `.gitignore`)
@@ -140,7 +198,8 @@ The application will start and you should see the authentication screen.
 2. **Row Level Security**: Configure RLS policies in Supabase to secure user data
 3. **User Profiles**: Create a user profiles table to store additional user information
 4. **Multi-tenant Support**: Link inventory data to specific users
-5. **Social Authentication**: Add OAuth providers (Google, GitHub, etc.)
+5. **Additional OAuth Providers**: Add more OAuth providers (GitHub, Facebook, Azure, etc.)
+   - Google OAuth is already implemented! See Step 5 for setup instructions.
 
 ### Row Level Security (RLS) Example
 
