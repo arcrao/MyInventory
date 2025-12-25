@@ -4,6 +4,7 @@ A comprehensive Inventory Management System built with React, TypeScript, and Ta
 
 ## Features
 
+- **User Authentication**: Secure authentication powered by Supabase
 - **Dashboard**: Real-time overview of inventory metrics, low stock alerts, and category statistics
 - **Product Management**: Add, edit, and delete products with detailed information
 - **Stock Tracking**: Monitor stock levels with automatic low stock alerts
@@ -17,6 +18,8 @@ A comprehensive Inventory Management System built with React, TypeScript, and Ta
 MyInventory/
 ├── src/
 │   ├── components/           # React components organized by feature
+│   │   ├── Auth/
+│   │   │   └── AuthForm.tsx           # Login/signup authentication form
 │   │   ├── Dashboard/
 │   │   │   └── Dashboard.tsx         # Main dashboard with metrics
 │   │   ├── Products/
@@ -29,11 +32,17 @@ MyInventory/
 │   │   └── Layout/
 │   │       └── Header.tsx            # Application header
 │   │
+│   ├── contexts/             # React contexts
+│   │   └── AuthContext.tsx           # Authentication state management
+│   │
 │   ├── hooks/                # Custom React hooks
 │   │   ├── useProducts.ts            # Product CRUD operations
 │   │   ├── useCategories.ts          # Category management
 │   │   ├── useLocations.ts           # Location management
 │   │   └── useHistory.ts             # History tracking
+│   │
+│   ├── lib/                  # Third-party library configurations
+│   │   └── supabase.ts               # Supabase client setup
 │   │
 │   ├── services/             # Business logic and external services
 │   │   └── storage.service.ts        # Storage API wrapper
@@ -51,6 +60,8 @@ MyInventory/
 │   ├── main.tsx              # Application entry point
 │   └── index.css             # Global styles with Tailwind
 │
+├── .env.example              # Environment variables template
+├── SUPABASE_SETUP.md         # Supabase setup instructions
 ├── index.html                # HTML template
 ├── package.json              # Dependencies and scripts
 ├── tsconfig.json             # TypeScript configuration
@@ -100,6 +111,11 @@ MyInventory/
 # Install dependencies
 npm install
 
+# Set up environment variables
+cp .env.example .env
+# Edit .env and add your Supabase credentials
+# See SUPABASE_SETUP.md for detailed instructions
+
 # Start development server
 npm run dev
 
@@ -109,6 +125,8 @@ npm run build
 # Preview production build
 npm run preview
 ```
+
+**Important**: Before running the application, you must set up Supabase authentication. See [SUPABASE_SETUP.md](./SUPABASE_SETUP.md) for detailed setup instructions.
 
 ### Development
 
@@ -143,6 +161,7 @@ The project uses:
 
 - **Frontend**: React 18
 - **Language**: TypeScript
+- **Authentication**: Supabase
 - **Styling**: Tailwind CSS
 - **Icons**: Lucide React
 - **Build Tool**: Vite
