@@ -14,11 +14,10 @@ export class StorageService {
   // Products
   static async getProducts(page?: number, pageSize: number = 50): Promise<Product[]> {
     try {
-      const userId = await this.getUserId();
+      // All authenticated users can view all products (no user_id filter)
       let query = supabase
         .from('products')
         .select('*')
-        .eq('user_id', userId)
         .order('created_at', { ascending: false });
 
       // Add pagination if page is provided
@@ -56,11 +55,10 @@ export class StorageService {
 
   static async getProductsCount(): Promise<number> {
     try {
-      const userId = await this.getUserId();
+      // All authenticated users can view all products (no user_id filter)
       const { count, error } = await supabase
         .from('products')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', userId);
+        .select('*', { count: 'exact', head: true });
 
       if (error) throw error;
       return count || 0;
@@ -122,7 +120,6 @@ export class StorageService {
 
   static async updateProduct(id: number, updates: Partial<Product>): Promise<void> {
     try {
-      const userId = await this.getUserId();
       const updateData: any = {};
 
       if (updates.name !== undefined) updateData.name = updates.name;
@@ -137,11 +134,11 @@ export class StorageService {
       if (updates.specification !== undefined) updateData.specification = updates.specification;
       if (updates.unitOfMeasure !== undefined) updateData.unit_of_measure = updates.unitOfMeasure;
 
+      // RLS policies will handle authorization (only admins can update)
       const { error } = await supabase
         .from('products')
         .update(updateData)
-        .eq('id', id)
-        .eq('user_id', userId);
+        .eq('id', id);
 
       if (error) throw error;
     } catch (error) {
@@ -152,12 +149,11 @@ export class StorageService {
 
   static async deleteProduct(id: number): Promise<void> {
     try {
-      const userId = await this.getUserId();
+      // RLS policies will handle authorization (only admins can delete)
       const { error } = await supabase
         .from('products')
         .delete()
-        .eq('id', id)
-        .eq('user_id', userId);
+        .eq('id', id);
 
       if (error) throw error;
     } catch (error) {
@@ -169,11 +165,10 @@ export class StorageService {
   // Categories
   static async getCategories(): Promise<Category[]> {
     try {
-      const userId = await this.getUserId();
+      // All authenticated users can view all categories (no user_id filter)
       const { data, error } = await supabase
         .from('categories')
         .select('*')
-        .eq('user_id', userId)
         .order('name', { ascending: true });
 
       if (error) throw error;
@@ -218,12 +213,11 @@ export class StorageService {
 
   static async deleteCategory(id: string): Promise<void> {
     try {
-      const userId = await this.getUserId();
+      // RLS policies will handle authorization (only admins can delete)
       const { error } = await supabase
         .from('categories')
         .delete()
-        .eq('id', id)
-        .eq('user_id', userId);
+        .eq('id', id);
 
       if (error) throw error;
     } catch (error) {
@@ -235,11 +229,10 @@ export class StorageService {
   // Locations
   static async getLocations(): Promise<Location[]> {
     try {
-      const userId = await this.getUserId();
+      // All authenticated users can view all locations (no user_id filter)
       const { data, error } = await supabase
         .from('locations')
         .select('*')
-        .eq('user_id', userId)
         .order('name', { ascending: true });
 
       if (error) throw error;
@@ -284,12 +277,11 @@ export class StorageService {
 
   static async deleteLocation(id: string): Promise<void> {
     try {
-      const userId = await this.getUserId();
+      // RLS policies will handle authorization (only admins can delete)
       const { error } = await supabase
         .from('locations')
         .delete()
-        .eq('id', id)
-        .eq('user_id', userId);
+        .eq('id', id);
 
       if (error) throw error;
     } catch (error) {
@@ -301,11 +293,10 @@ export class StorageService {
   // History
   static async getHistory(): Promise<HistoryEntry[]> {
     try {
-      const userId = await this.getUserId();
+      // All authenticated users can view all history (no user_id filter)
       const { data, error } = await supabase
         .from('history')
         .select('*')
-        .eq('user_id', userId)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
