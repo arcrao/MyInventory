@@ -6,9 +6,8 @@ import { User } from '@supabase/supabase-js';
 interface StockAdjustmentData {
   quantity: number;
   notes: string;
-  receivedBy?: string;
+  contactPerson?: string;
   pricePerUnit?: number;
-  issuedTo?: string;
   date: string;
 }
 
@@ -110,7 +109,7 @@ export const useProducts = (
       action: 'stock_in',
       quantity: data.quantity,
       notes: data.notes || 'Stock added',
-      receivedBy: data.receivedBy,
+      contactPerson: data.contactPerson,
       pricePerUnit: data.pricePerUnit,
       date: data.date,
     });
@@ -129,7 +128,7 @@ export const useProducts = (
       action: 'stock_out',
       quantity: data.quantity,
       notes: data.notes || 'Stock removed',
-      issuedTo: data.issuedTo,
+      contactPerson: data.contactPerson,
       date: data.date,
     });
     // Reload products to reflect changes

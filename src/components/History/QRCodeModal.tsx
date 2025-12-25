@@ -23,8 +23,10 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({ entry, products, onClo
     quantity: entry.quantity,
     date: entry.date || new Date(entry.timestamp).toLocaleDateString(),
     timestamp: entry.timestamp,
+    ...(entry.contactPerson && {
+      [entry.action === 'stock_in' ? 'receivedBy' : 'issuedTo']: entry.contactPerson,
+    }),
     ...(entry.action === 'stock_in' && {
-      receivedBy: entry.receivedBy,
       pricePerUnit: entry.pricePerUnit,
       totalCost: entry.pricePerUnit && entry.quantity
         ? (entry.pricePerUnit * entry.quantity).toFixed(2)
@@ -79,15 +81,17 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({ entry, products, onClo
               <p><span className="font-medium">Action:</span> {entry.action.replace('_', ' ')}</p>
               <p><span className="font-medium">Quantity:</span> {entry.quantity}</p>
               <p><span className="font-medium">Date:</span> {entry.date || new Date(entry.timestamp).toLocaleDateString()}</p>
-              {entry.action === 'stock_in' && (
+              {entry.contactPerson && (
+                <p>
+                  <span className="font-medium">
+                    {entry.action === 'stock_in' ? 'Received By:' : 'Issued To:'}
+                  </span> {entry.contactPerson}
+                </p>
+              )}
+              {entry.action === 'stock_in' && entry.pricePerUnit !== undefined && (
                 <>
-                  {entry.receivedBy && <p><span className="font-medium">Received By:</span> {entry.receivedBy}</p>}
-                  {entry.pricePerUnit !== undefined && (
-                    <>
-                      <p><span className="font-medium">Price/Unit:</span> ${entry.pricePerUnit.toFixed(2)}</p>
-                      <p><span className="font-medium">Total Cost:</span> ${(entry.pricePerUnit * entry.quantity).toFixed(2)}</p>
-                    </>
-                  )}
+                  <p><span className="font-medium">Price/Unit:</span> ₹{entry.pricePerUnit.toFixed(2)}</p>
+                  <p><span className="font-medium">Total Cost:</span> ₹{(entry.pricePerUnit * entry.quantity).toFixed(2)}</p>
                 </>
               )}
               {entry.notes && <p><span className="font-medium">Notes:</span> {entry.notes}</p>}

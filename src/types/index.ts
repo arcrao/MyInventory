@@ -31,12 +31,9 @@ export interface HistoryEntry {
   quantity: number;
   notes: string;
   timestamp: string;
-  // Stock In specific fields
-  receivedBy?: string;
+  // Contact person - label changes based on action: "Received By" for stock_in, "Issued To" for stock_out
+  contactPerson?: string;
   pricePerUnit?: number;
-  // Stock Out specific fields
-  issuedTo?: string;
-  // Common field for both
   date?: string;
 }
 

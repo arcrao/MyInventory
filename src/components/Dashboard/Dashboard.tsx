@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Package, AlertTriangle, TrendingUp, BarChart3 } from 'lucide-react';
 import { Product, Category } from '../../types';
+import { StorageService } from '../../services/storage.service';
 import {
   getLowStockProducts,
   getTotalValue,
@@ -15,10 +16,30 @@ interface DashboardProps {
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({ products, categories }) => {
-  const lowStockItems = getLowStockProducts(products);
-  const totalValue = getTotalValue(products);
-  const totalProducts = products.length;
-  const totalQuantity = getTotalQuantity(products);
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchAllProducts = async () => {
+      try {
+        setLoading(true);
+        // Fetch ALL products without pagination for accurate dashboard stats
+        const data = await StorageService.getProducts();
+        setAllProducts(data);
+      } catch (error) {
+        console.error('[Dashboard] Error fetching all products:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAllProducts();
+  }, [products]); // Re-fetch when products prop changes (e.g., after add/edit/delete)
+
+  const lowStockItems = getLowStockProducts(allProducts);
+  const totalValue = getTotalValue(allProducts);
+  const totalProducts = allProducts.length;
+  const totalQuantity = getTotalQuantity(allProducts);
 
   return (
     <div className="space-y-6">
@@ -89,23 +110,27 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, categories }) =>
 
       <div className="bg-white border rounded-lg p-6">
         <h3 className="text-lg font-bold mb-4">Stock by Category</h3>
-        <div className="space-y-2">
-          {categories.map((cat) => {
-            const catProducts = getProductsByCategory(products, cat.id);
-            const catQuantity = getCategoryQuantity(products, cat.id);
-            return (
-              <div
-                key={cat.id}
-                className="flex justify-between items-center p-3 bg-gray-50 rounded"
-              >
-                <span className="font-medium">{cat.name}</span>
-                <span className="text-gray-600">
-                  {catProducts.length} products, {catQuantity} items
-                </span>
-              </div>
-            );
-          })}
-        </div>
+        {loading ? (
+          <div className="text-center py-8 text-gray-500">Loading...</div>
+        ) : (
+          <div className="space-y-2">
+            {categories.map((cat) => {
+              const catProducts = getProductsByCategory(allProducts, cat.id);
+              const catQuantity = getCategoryQuantity(allProducts, cat.id);
+              return (
+                <div
+                  key={cat.id}
+                  className="flex justify-between items-center p-3 bg-gray-50 rounded"
+                >
+                  <span className="font-medium">{cat.name}</span>
+                  <span className="text-gray-600">
+                    {catProducts.length} products, {catQuantity} items
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

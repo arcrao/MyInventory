@@ -87,9 +87,8 @@ CREATE TABLE history (
   action TEXT NOT NULL CHECK (action IN ('created', 'stock_in', 'stock_out', 'deleted', 'updated')),
   quantity INTEGER NOT NULL DEFAULT 0,
   notes TEXT,
-  received_by TEXT,
+  contact_person TEXT,  -- Used for both "Received By" (stock_in) and "Issued To" (stock_out)
   price_per_unit DECIMAL(10, 2),
-  issued_to TEXT,
   date TIMESTAMP WITH TIME ZONE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -348,4 +347,22 @@ DROP POLICY IF EXISTS "Users can insert their own history" ON history;
 INSERT INTO user_roles (user_id, role)
 VALUES ('your-user-id', 'admin')
 ON CONFLICT (user_id) DO UPDATE SET role = 'admin';
+```
+
+## Migration: Merge received_by and issued_to columns
+
+If you have existing data with `received_by` and `issued_to` columns, run this migration:
+
+```sql
+-- Add new contact_person column
+ALTER TABLE history ADD COLUMN IF NOT EXISTS contact_person TEXT;
+
+-- Migrate data: use received_by for stock_in, issued_to for stock_out
+UPDATE history
+SET contact_person = COALESCE(received_by, issued_to)
+WHERE contact_person IS NULL;
+
+-- Drop old columns
+ALTER TABLE history DROP COLUMN IF EXISTS received_by;
+ALTER TABLE history DROP COLUMN IF EXISTS issued_to;
 ```

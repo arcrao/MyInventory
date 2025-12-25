@@ -5,9 +5,8 @@ import { Product } from '../../types';
 interface StockAdjustmentData {
   quantity: number;
   notes: string;
-  receivedBy?: string;
+  contactPerson?: string;
   pricePerUnit?: number;
-  issuedTo?: string;
   date: string;
 }
 
@@ -25,9 +24,8 @@ export const StockAdjustmentModal: React.FC<StockAdjustmentModalProps> = ({
   const [action, setAction] = useState<'stock_in' | 'stock_out'>('stock_in');
   const [quantity, setQuantity] = useState<number>(0);
   const [notes, setNotes] = useState<string>('');
-  const [receivedBy, setReceivedBy] = useState<string>('');
+  const [contactPerson, setContactPerson] = useState<string>('');
   const [pricePerUnit, setPricePerUnit] = useState<number>(product.price);
-  const [issuedTo, setIssuedTo] = useState<string>('');
   const [date, setDate] = useState<string>(new Date().toISOString().split('T')[0]);
 
   const handleSubmit = () => {
@@ -41,13 +39,9 @@ export const StockAdjustmentModal: React.FC<StockAdjustmentModalProps> = ({
       return;
     }
 
-    if (action === 'stock_in' && !receivedBy.trim()) {
-      alert('Please enter who received the stock');
-      return;
-    }
-
-    if (action === 'stock_out' && !issuedTo.trim()) {
-      alert('Please enter who the stock was issued to');
+    if (!contactPerson.trim()) {
+      const label = action === 'stock_in' ? 'who received the stock' : 'who the stock was issued to';
+      alert(`Please enter ${label}`);
       return;
     }
 
@@ -55,8 +49,8 @@ export const StockAdjustmentModal: React.FC<StockAdjustmentModalProps> = ({
       quantity,
       notes,
       date,
-      ...(action === 'stock_in' && { receivedBy, pricePerUnit }),
-      ...(action === 'stock_out' && { issuedTo }),
+      contactPerson,
+      ...(action === 'stock_in' && { pricePerUnit }),
     };
 
     onAdjust(product.id, action, adjustmentData);
@@ -132,19 +126,21 @@ export const StockAdjustmentModal: React.FC<StockAdjustmentModalProps> = ({
           </div>
         </div>
 
-        {action === 'stock_in' && (
-          <div className="grid grid-cols-2 gap-4 mb-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">Received By *</label>
-              <input
-                type="text"
-                value={receivedBy}
-                onChange={(e) => setReceivedBy(e.target.value)}
-                className="w-full border rounded px-3 py-2"
-                placeholder="Enter person name"
-              />
-            </div>
+        <div className={action === 'stock_in' ? 'grid grid-cols-2 gap-4 mb-4' : 'mb-4'}>
+          <div>
+            <label className="block text-sm font-medium mb-1">
+              {action === 'stock_in' ? 'Received By' : 'Issued To'} *
+            </label>
+            <input
+              type="text"
+              value={contactPerson}
+              onChange={(e) => setContactPerson(e.target.value)}
+              className="w-full border rounded px-3 py-2"
+              placeholder={action === 'stock_in' ? 'Enter person name' : 'Enter person/department name'}
+            />
+          </div>
 
+          {action === 'stock_in' && (
             <div>
               <label className="block text-sm font-medium mb-1">Price per Unit *</label>
               <input
@@ -157,21 +153,8 @@ export const StockAdjustmentModal: React.FC<StockAdjustmentModalProps> = ({
                 placeholder="Enter price"
               />
             </div>
-          </div>
-        )}
-
-        {action === 'stock_out' && (
-          <div className="mb-4">
-            <label className="block text-sm font-medium mb-1">Issued To *</label>
-            <input
-              type="text"
-              value={issuedTo}
-              onChange={(e) => setIssuedTo(e.target.value)}
-              className="w-full border rounded px-3 py-2"
-              placeholder="Enter person/department name"
-            />
-          </div>
-        )}
+          )}
+        </div>
 
         <div className="mb-4">
           <label className="block text-sm font-medium mb-1">Notes</label>

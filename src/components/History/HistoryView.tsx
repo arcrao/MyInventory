@@ -78,7 +78,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
             <input
               type="text"
-              placeholder="Search notes, received by, issued to..."
+              placeholder="Search product, category, notes, contact..."
               value={localSearch}
               onChange={(e) => setLocalSearch(e.target.value)}
               className="pl-10 pr-4 py-2 border rounded w-80"
@@ -121,8 +121,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
                 <th className="px-4 py-3 text-left text-sm font-medium">Date</th>
                 <th className="px-4 py-3 text-left text-sm font-medium">Product</th>
                 <th className="px-4 py-3 text-right text-sm font-medium">Quantity</th>
-                <th className="px-4 py-3 text-left text-sm font-medium">Received By</th>
-                <th className="px-4 py-3 text-left text-sm font-medium">Issued To</th>
+                <th className="px-4 py-3 text-left text-sm font-medium">Received By / Issued To</th>
                 <th className="px-4 py-3 text-right text-sm font-medium">Price/Unit</th>
                 <th className="px-4 py-3 text-left text-sm font-medium">Notes</th>
                 <th className="px-4 py-3 text-center text-sm font-medium">QR</th>
@@ -147,10 +146,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
                     {entry.quantity > 0 ? entry.quantity : '-'}
                   </td>
                   <td className="px-4 py-3 text-sm">
-                    {entry.receivedBy || '-'}
-                  </td>
-                  <td className="px-4 py-3 text-sm">
-                    {entry.issuedTo || '-'}
+                    {entry.contactPerson || '-'}
                   </td>
                   <td className="px-4 py-3 text-right text-sm">
                     {entry.pricePerUnit ? (
