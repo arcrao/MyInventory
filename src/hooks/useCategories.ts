@@ -17,19 +17,15 @@ export const useCategories = () => {
   const addCategory = async (name: string): Promise<void> => {
     if (!name.trim()) return;
 
-    const newCategory: Category = {
-      id: Date.now().toString(),
-      name: name.trim(),
-    };
-    const newCategories = [...categories, newCategory];
-    setCategories(newCategories);
-    await StorageService.setCategories(newCategories);
+    const newCategory = await StorageService.addCategory(name.trim());
+    if (newCategory) {
+      setCategories([...categories, newCategory]);
+    }
   };
 
   const deleteCategory = async (id: string): Promise<boolean> => {
-    const newCategories = categories.filter(c => c.id !== id);
-    setCategories(newCategories);
-    await StorageService.setCategories(newCategories);
+    await StorageService.deleteCategory(id);
+    setCategories(categories.filter(c => c.id !== id));
     return true;
   };
 

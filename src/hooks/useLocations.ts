@@ -17,19 +17,15 @@ export const useLocations = () => {
   const addLocation = async (name: string): Promise<void> => {
     if (!name.trim()) return;
 
-    const newLocation: Location = {
-      id: Date.now().toString(),
-      name: name.trim(),
-    };
-    const newLocations = [...locations, newLocation];
-    setLocations(newLocations);
-    await StorageService.setLocations(newLocations);
+    const newLocation = await StorageService.addLocation(name.trim());
+    if (newLocation) {
+      setLocations([...locations, newLocation]);
+    }
   };
 
   const deleteLocation = async (id: string): Promise<boolean> => {
-    const newLocations = locations.filter(l => l.id !== id);
-    setLocations(newLocations);
-    await StorageService.setLocations(newLocations);
+    await StorageService.deleteLocation(id);
+    setLocations(locations.filter(l => l.id !== id));
     return true;
   };
 

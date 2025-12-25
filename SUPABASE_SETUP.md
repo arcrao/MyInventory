@@ -128,7 +128,25 @@ The Supabase client library has already been installed. If you need to reinstall
 npm install @supabase/supabase-js
 ```
 
-## Step 7: Run the Application
+## Step 7: Create Database Tables
+
+The application stores all inventory data in Supabase tables. You must create these tables before using the app:
+
+1. See [DATABASE_SCHEMA.md](./DATABASE_SCHEMA.md) for the complete SQL schema
+2. Go to your Supabase Dashboard → SQL Editor
+3. Create a new query
+4. Copy and paste the entire SQL schema from DATABASE_SCHEMA.md
+5. Click "Run" to execute the schema
+
+This will create:
+- `categories` table - Product categories
+- `locations` table - Storage locations
+- `products` table - Inventory products
+- `history` table - Transaction history
+
+All tables include Row Level Security (RLS) policies to ensure each user can only access their own data.
+
+## Step 8: Run the Application
 
 ```bash
 npm run dev
