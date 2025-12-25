@@ -12,14 +12,24 @@ export class StorageService {
   }
 
   // Products
-  static async getProducts(page?: number, pageSize: number = 50): Promise<Product[]> {
+  static async getProducts(page?: number, pageSize: number = 50, categoryId?: string, searchTerm?: string): Promise<Product[]> {
     try {
-      console.log('[StorageService] Fetching products, page:', page);
+      console.log('[StorageService] Fetching products, page:', page, 'category:', categoryId, 'search:', searchTerm);
       // All authenticated users can view all products (no user_id filter)
       let query = supabase
         .from('products')
         .select('*')
         .order('created_at', { ascending: false });
+
+      // Add category filter if provided
+      if (categoryId) {
+        query = query.eq('category_id', categoryId);
+      }
+
+      // Add search filter if provided
+      if (searchTerm && searchTerm.trim()) {
+        query = query.or(`name.ilike.%${searchTerm}%,sku.ilike.%${searchTerm}%,brand.ilike.%${searchTerm}%`);
+      }
 
       // Add pagination if page is provided
       if (page !== undefined && page >= 0) {
@@ -58,12 +68,24 @@ export class StorageService {
     }
   }
 
-  static async getProductsCount(): Promise<number> {
+  static async getProductsCount(categoryId?: string, searchTerm?: string): Promise<number> {
     try {
       // All authenticated users can view all products (no user_id filter)
-      const { count, error } = await supabase
+      let query = supabase
         .from('products')
         .select('*', { count: 'exact', head: true });
+
+      // Add category filter if provided
+      if (categoryId) {
+        query = query.eq('category_id', categoryId);
+      }
+
+      // Add search filter if provided
+      if (searchTerm && searchTerm.trim()) {
+        query = query.or(`name.ilike.%${searchTerm}%,sku.ilike.%${searchTerm}%,brand.ilike.%${searchTerm}%`);
+      }
+
+      const { count, error } = await query;
 
       if (error) throw error;
       return count || 0;
@@ -306,16 +328,32 @@ export class StorageService {
   }
 
   // History
-  static async getHistory(): Promise<HistoryEntry[]> {
+  static async getHistory(page?: number, pageSize: number = 50, searchTerm?: string): Promise<HistoryEntry[]> {
     try {
+      console.log('[StorageService] Fetching history, page:', page, 'search:', searchTerm);
       // All authenticated users can view all history (no user_id filter)
-      const { data, error } = await supabase
+      let query = supabase
         .from('history')
         .select('*')
         .order('created_at', { ascending: false });
 
+      // Add search filter if provided (search in notes, received_by, issued_to)
+      if (searchTerm && searchTerm.trim()) {
+        query = query.or(`notes.ilike.%${searchTerm}%,received_by.ilike.%${searchTerm}%,issued_to.ilike.%${searchTerm}%`);
+      }
+
+      // Add pagination if page is provided
+      if (page !== undefined && page >= 0) {
+        const from = page * pageSize;
+        const to = from + pageSize - 1;
+        query = query.range(from, to);
+      }
+
+      const { data, error } = await query;
+
       if (error) throw error;
 
+      console.log('[StorageService] Fetched history:', data?.length || 0, 'items');
       return (data || []).map(item => ({
         id: item.id,
         productId: item.product_id,
@@ -331,6 +369,27 @@ export class StorageService {
     } catch (error) {
       console.error('Error getting history:', error);
       return [];
+    }
+  }
+
+  static async getHistoryCount(searchTerm?: string): Promise<number> {
+    try {
+      let query = supabase
+        .from('history')
+        .select('*', { count: 'exact', head: true });
+
+      // Add search filter if provided
+      if (searchTerm && searchTerm.trim()) {
+        query = query.or(`notes.ilike.%${searchTerm}%,received_by.ilike.%${searchTerm}%,issued_to.ilike.%${searchTerm}%`);
+      }
+
+      const { count, error } = await query;
+
+      if (error) throw error;
+      return count || 0;
+    } catch (error) {
+      console.error('Error getting history count:', error);
+      return 0;
     }
   }
 

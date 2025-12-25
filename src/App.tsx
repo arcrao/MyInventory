@@ -22,7 +22,16 @@ const App: React.FC = () => {
   const [showStockAdjustment, setShowStockAdjustment] = useState(false);
   const [adjustingProduct, setAdjustingProduct] = useState<Product | null>(null);
 
-  const { history, addHistoryEntry } = useHistory(user);
+  const {
+    history,
+    addHistoryEntry,
+    currentPage: historyPage,
+    totalPages: historyTotalPages,
+    totalCount: historyTotalCount,
+    searchTerm: historySearchTerm,
+    applySearch: applyHistorySearch,
+    goToPage: goToHistoryPage,
+  } = useHistory(user);
   const {
     products,
     addProduct,
@@ -33,7 +42,8 @@ const App: React.FC = () => {
     currentPage,
     totalPages,
     totalCount,
-    goToPage
+    goToPage,
+    applyFilters,
   } = useProducts(addHistoryEntry, user);
   const { categories, addCategory, deleteCategory } = useCategories(user);
   const { locations, addLocation, deleteLocation } = useLocations(user);
@@ -159,9 +169,21 @@ const App: React.FC = () => {
             totalPages={totalPages}
             totalCount={totalCount}
             onPageChange={goToPage}
+            onFilterChange={applyFilters}
           />
         )}
-        {activeTab === 'history' && <HistoryView history={history} products={products} />}
+        {activeTab === 'history' && (
+          <HistoryView
+            history={history}
+            products={products}
+            currentPage={historyPage}
+            totalPages={historyTotalPages}
+            totalCount={historyTotalCount}
+            searchTerm={historySearchTerm}
+            onSearchChange={applyHistorySearch}
+            onPageChange={goToHistoryPage}
+          />
+        )}
         {activeTab === 'settings' && (
           <SettingsView
             categories={categories}

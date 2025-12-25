@@ -20,9 +20,10 @@ export const useProducts = (
   const [currentPage, setCurrentPage] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [filters, setFilters] = useState({ searchTerm: '', categoryId: '' });
   const pageSize = 50;
 
-  const loadProducts = async (page?: number) => {
+  const loadProducts = async (page?: number, newFilters?: { searchTerm: string; categoryId: string }) => {
     if (!user) {
       console.log('[useProducts] No user, skipping load');
       return;
@@ -32,9 +33,19 @@ export const useProducts = (
       console.log('[useProducts] Loading products, page:', page);
       setLoading(true);
       const pageToLoad = page !== undefined ? page : currentPage;
+      const filtersToUse = newFilters || filters;
+
       const [data, count] = await Promise.all([
-        StorageService.getProducts(pageToLoad, pageSize),
-        StorageService.getProductsCount()
+        StorageService.getProducts(
+          pageToLoad,
+          pageSize,
+          filtersToUse.categoryId || undefined,
+          filtersToUse.searchTerm || undefined
+        ),
+        StorageService.getProductsCount(
+          filtersToUse.categoryId || undefined,
+          filtersToUse.searchTerm || undefined
+        )
       ]);
       console.log('[useProducts] Loaded products:', data.length, 'Total count:', count);
       setProducts(data);
@@ -42,11 +53,19 @@ export const useProducts = (
       if (page !== undefined) {
         setCurrentPage(page);
       }
+      if (newFilters) {
+        setFilters(newFilters);
+      }
     } catch (error) {
       console.error('[useProducts] Error loading products:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const applyFilters = (newFilters: { searchTerm: string; categoryId: string }) => {
+    setCurrentPage(0); // Reset to first page
+    loadProducts(0, newFilters);
   };
 
   useEffect(() => {
@@ -148,5 +167,7 @@ export const useProducts = (
     goToPage,
     pageSize,
     loading,
+    filters,
+    applyFilters,
   };
 };

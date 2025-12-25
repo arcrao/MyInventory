@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { Plus, Edit2, Trash2, AlertTriangle, TrendingUp, Download, Upload, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Product, Category, Location, ProductFormData } from '../../types';
 import { getCategoryName, getLocationName } from '../../utils/helpers';
@@ -20,6 +20,7 @@ interface ProductsListProps {
   totalPages?: number;
   totalCount?: number;
   onPageChange?: (page: number) => void;
+  onFilterChange?: (filters: { searchTerm: string; categoryId: string }) => void;
 }
 
 export const ProductsList: React.FC<ProductsListProps> = ({
@@ -35,6 +36,7 @@ export const ProductsList: React.FC<ProductsListProps> = ({
   totalPages = 1,
   totalCount = 0,
   onPageChange,
+  onFilterChange,
 }) => {
   const [filters, setFilters] = useState({ searchTerm: '', categoryId: '' });
   const [importError, setImportError] = useState<string | null>(null);
@@ -42,21 +44,12 @@ export const ProductsList: React.FC<ProductsListProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { isAdmin, loading: adminLoading } = useAdmin();
 
-  const filteredProducts = useMemo(() => {
-    return products.filter((product) => {
-      // Filter by search term (product name, SKU, or brand)
-      const matchesSearch =
-        !filters.searchTerm ||
-        product.name.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
-        product.sku.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
-        product.brand?.toLowerCase().includes(filters.searchTerm.toLowerCase());
-
-      // Filter by category
-      const matchesCategory = !filters.categoryId || product.categoryId === filters.categoryId;
-
-      return matchesSearch && matchesCategory;
-    });
-  }, [products, filters]);
+  const handleFilterChange = (newFilters: { searchTerm: string; categoryId: string }) => {
+    setFilters(newFilters);
+    if (onFilterChange) {
+      onFilterChange(newFilters);
+    }
+  };
 
   const handleExport = async () => {
     await exportToCSV(categories, locations);
@@ -145,12 +138,12 @@ export const ProductsList: React.FC<ProductsListProps> = ({
         </div>
       )}
 
-      <ProductFilters categories={categories} onFilterChange={setFilters} />
+      <ProductFilters categories={categories} onFilterChange={handleFilterChange} />
 
       <div className="bg-white border rounded-lg overflow-hidden">
-        {filteredProducts.length > 0 && (
+        {products.length > 0 && (
           <div className="px-4 py-2 bg-gray-50 border-b text-sm text-gray-600">
-            Showing {filteredProducts.length} of {products.length} products
+            Showing {products.length} {filters.categoryId || filters.searchTerm ? 'filtered' : ''} products
           </div>
         )}
 
@@ -168,7 +161,7 @@ export const ProductsList: React.FC<ProductsListProps> = ({
             </tr>
           </thead>
           <tbody className="divide-y">
-            {filteredProducts.map((product) => (
+            {products.map((product) => (
               <tr
                 key={product.id}
                 className={product.quantity <= product.minStock ? 'bg-red-50' : ''}
@@ -230,12 +223,12 @@ export const ProductsList: React.FC<ProductsListProps> = ({
             ))}
           </tbody>
         </table>
-        {filteredProducts.length === 0 && products.length > 0 && (
+        {products.length === 0 && (filters.categoryId || filters.searchTerm) && (
           <div className="text-center py-12 text-gray-500">
             No products match your filters. Try adjusting your search criteria.
           </div>
         )}
-        {products.length === 0 && (
+        {products.length === 0 && !filters.categoryId && !filters.searchTerm && (
           <div className="text-center py-12 text-gray-500">
             No products yet. Click "Add Product" to get started.
           </div>
