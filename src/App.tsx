@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Header } from './components/Layout/Header';
 import { Dashboard } from './components/Dashboard/Dashboard';
 import { ProductsList } from './components/Products/ProductsList';
@@ -21,6 +21,14 @@ const App: React.FC = () => {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [showStockAdjustment, setShowStockAdjustment] = useState(false);
   const [adjustingProduct, setAdjustingProduct] = useState<Product | null>(null);
+
+  // Debug: Log auth state and data loading
+  useEffect(() => {
+    console.log('[App] Auth state:', {
+      user: user ? { id: user.id, email: user.email, provider: user.app_metadata?.provider } : null,
+      loading
+    });
+  }, [user, loading]);
 
   const {
     history,
@@ -48,6 +56,16 @@ const App: React.FC = () => {
   } = useProducts(addHistoryEntry, user);
   const { categories, addCategory, deleteCategory } = useCategories(user);
   const { locations, addLocation, deleteLocation } = useLocations(user);
+
+  // Debug: Log data state
+  useEffect(() => {
+    console.log('[App] Data loaded:', {
+      products: products.length,
+      categories: categories.length,
+      locations: locations.length,
+      history: history.length
+    });
+  }, [products, categories, locations, history]);
 
   // Show loading state while checking authentication
   if (loading) {

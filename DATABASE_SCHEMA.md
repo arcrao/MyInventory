@@ -33,14 +33,27 @@ CREATE TABLE user_roles (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Helper function to check if user is admin
-CREATE OR REPLACE FUNCTION is_admin(user_id UUID)
+-- Helper function to check if user is admin (email-based to support multiple auth providers)
+CREATE OR REPLACE FUNCTION is_admin()
 RETURNS BOOLEAN AS $$
+DECLARE
+  user_email TEXT;
+  user_role TEXT;
 BEGIN
-  RETURN EXISTS (
-    SELECT 1 FROM user_roles
-    WHERE user_roles.user_id = $1 AND role = 'admin'
-  );
+  -- Get current user's email
+  SELECT email INTO user_email
+  FROM auth.users
+  WHERE id = auth.uid();
+
+  -- Check if any user with this email is admin
+  SELECT role INTO user_role
+  FROM user_roles ur
+  JOIN auth.users au ON au.id = ur.user_id
+  WHERE au.email = user_email
+    AND role = 'admin'
+  LIMIT 1;
+
+  RETURN user_role = 'admin';
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
@@ -118,15 +131,15 @@ CREATE POLICY "Authenticated users can view user roles"
 
 CREATE POLICY "Only admins can insert user roles"
   ON user_roles FOR INSERT
-  WITH CHECK (is_admin(auth.uid()));
+  WITH CHECK (is_admin());
 
 CREATE POLICY "Only admins can update user roles"
   ON user_roles FOR UPDATE
-  USING (is_admin(auth.uid()));
+  USING (is_admin());
 
 CREATE POLICY "Only admins can delete user roles"
   ON user_roles FOR DELETE
-  USING (is_admin(auth.uid()));
+  USING (is_admin());
 
 -- Categories Policies
 CREATE POLICY "All authenticated users can view categories"
@@ -135,15 +148,15 @@ CREATE POLICY "All authenticated users can view categories"
 
 CREATE POLICY "Only admins can insert categories"
   ON categories FOR INSERT
-  WITH CHECK (is_admin(auth.uid()));
+  WITH CHECK (is_admin());
 
 CREATE POLICY "Only admins can update categories"
   ON categories FOR UPDATE
-  USING (is_admin(auth.uid()));
+  USING (is_admin());
 
 CREATE POLICY "Only admins can delete categories"
   ON categories FOR DELETE
-  USING (is_admin(auth.uid()));
+  USING (is_admin());
 
 -- Locations Policies
 CREATE POLICY "All authenticated users can view locations"
@@ -152,15 +165,15 @@ CREATE POLICY "All authenticated users can view locations"
 
 CREATE POLICY "Only admins can insert locations"
   ON locations FOR INSERT
-  WITH CHECK (is_admin(auth.uid()));
+  WITH CHECK (is_admin());
 
 CREATE POLICY "Only admins can update locations"
   ON locations FOR UPDATE
-  USING (is_admin(auth.uid()));
+  USING (is_admin());
 
 CREATE POLICY "Only admins can delete locations"
   ON locations FOR DELETE
-  USING (is_admin(auth.uid()));
+  USING (is_admin());
 
 -- Products Policies
 CREATE POLICY "All authenticated users can view products"
@@ -169,15 +182,15 @@ CREATE POLICY "All authenticated users can view products"
 
 CREATE POLICY "Only admins can insert products"
   ON products FOR INSERT
-  WITH CHECK (is_admin(auth.uid()));
+  WITH CHECK (is_admin());
 
 CREATE POLICY "Only admins can update products"
   ON products FOR UPDATE
-  USING (is_admin(auth.uid()));
+  USING (is_admin());
 
 CREATE POLICY "Only admins can delete products"
   ON products FOR DELETE
-  USING (is_admin(auth.uid()));
+  USING (is_admin());
 
 -- History Policies
 CREATE POLICY "All authenticated users can view history"
@@ -186,7 +199,7 @@ CREATE POLICY "All authenticated users can view history"
 
 CREATE POLICY "Only admins can insert history"
   ON history FOR INSERT
-  WITH CHECK (is_admin(auth.uid()));
+  WITH CHECK (is_admin());
 
 -- Function to update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()
