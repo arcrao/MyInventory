@@ -28,7 +28,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- User Roles Table
 CREATE TABLE user_roles (
   user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  role TEXT NOT NULL DEFAULT 'user' CHECK (role IN ('admin', 'user')),
+  role TEXT NOT NULL DEFAULT 'user' CHECK (role IN ('admin', 'user', 'super_admin')),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -221,6 +221,36 @@ CREATE TRIGGER update_user_roles_updated_at
   BEFORE UPDATE ON user_roles
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
+
+-- Product Name Protection
+-- Function to prevent product name updates for non-super-admins
+CREATE OR REPLACE FUNCTION prevent_product_name_update_non_superadmin()
+RETURNS TRIGGER AS $$
+DECLARE
+  user_role TEXT;
+BEGIN
+  -- Check if name is being changed
+  IF NEW.name IS DISTINCT FROM OLD.name THEN
+    -- Get user's role
+    SELECT role INTO user_role
+    FROM user_roles
+    WHERE user_id = auth.uid();
+
+    -- Only allow super_admin to change names
+    IF user_role != 'super_admin' THEN
+      RAISE EXCEPTION 'Only super administrators can modify product names';
+    END IF;
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger to enforce product name protection
+CREATE TRIGGER enforce_product_name_superadmin_only
+  BEFORE UPDATE ON products
+  FOR EACH ROW
+  EXECUTE FUNCTION prevent_product_name_update_non_superadmin();
 ```
 
 ## Creating Your First Admin User
@@ -232,7 +262,12 @@ After running the schema, you need to assign at least one admin user:
 3. Go to **SQL Editor** and run:
 
 ```sql
--- Replace 'your-user-id-here' with the actual UUID
+-- Create a super_admin (can edit product names and everything else)
+INSERT INTO user_roles (user_id, role)
+VALUES ('your-user-id-here', 'super_admin')
+ON CONFLICT (user_id) DO UPDATE SET role = 'super_admin';
+
+-- OR create a regular admin (can edit everything EXCEPT product names)
 INSERT INTO user_roles (user_id, role)
 VALUES ('your-user-id-here', 'admin')
 ON CONFLICT (user_id) DO UPDATE SET role = 'admin';
@@ -240,15 +275,17 @@ ON CONFLICT (user_id) DO UPDATE SET role = 'admin';
 
 Example:
 ```sql
+-- Make yourself a super_admin
 INSERT INTO user_roles (user_id, role)
-VALUES ('a1b2c3d4-e5f6-7890-abcd-ef1234567890', 'admin')
-ON CONFLICT (user_id) DO UPDATE SET role = 'admin';
+VALUES ('a1b2c3d4-e5f6-7890-abcd-ef1234567890', 'super_admin')
+ON CONFLICT (user_id) DO UPDATE SET role = 'super_admin';
 ```
 
 ## Key Features
 
 ### Role-Based Access Control
-- **Admin users**: Can view, create, edit, and delete all data
+- **Super Admin users**: Can view, create, edit (including product names), and delete all data
+- **Admin users**: Can view, create, edit, and delete all data (except product names)
 - **Regular users**: Can only view data (read-only access)
 - User roles are stored in the `user_roles` table
 
