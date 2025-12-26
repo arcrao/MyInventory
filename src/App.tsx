@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Header } from './components/Layout/Header';
 import { Dashboard } from './components/Dashboard/Dashboard';
 import { ProductsList } from './components/Products/ProductsList';
+import { ProductDetail } from './components/Products/ProductDetail';
 import { ProductForm } from './components/Products/ProductForm';
 import { StockAdjustmentModal } from './components/Products/StockAdjustmentModal';
 import { HistoryView } from './components/History/HistoryView';
@@ -21,6 +22,7 @@ const AuthenticatedApp: React.FC<{ user: any }> = ({ user }) => {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [showStockAdjustment, setShowStockAdjustment] = useState(false);
   const [adjustingProduct, setAdjustingProduct] = useState<Product | null>(null);
+  const [viewingProduct, setViewingProduct] = useState<Product | null>(null);
 
   const {
     history,
@@ -98,6 +100,14 @@ const AuthenticatedApp: React.FC<{ user: any }> = ({ user }) => {
     setAdjustingProduct(null);
   };
 
+  const handleViewProduct = (product: Product) => {
+    setViewingProduct(product);
+  };
+
+  const handleBackFromProductDetail = () => {
+    setViewingProduct(null);
+  };
+
   return (
     <div className="min-h-screen bg-gray-100">
       <Header />
@@ -139,7 +149,7 @@ const AuthenticatedApp: React.FC<{ user: any }> = ({ user }) => {
         </div>
 
         {activeTab === 'dashboard' && <Dashboard products={products} categories={categories} />}
-        {activeTab === 'products' && (
+        {activeTab === 'products' && !viewingProduct && (
           <ProductsList
             products={products}
             categories={categories}
@@ -148,6 +158,7 @@ const AuthenticatedApp: React.FC<{ user: any }> = ({ user }) => {
             onEditProduct={handleEditProduct}
             onDeleteProduct={deleteProduct}
             onStockAdjust={handleStockAdjust}
+            onViewProduct={handleViewProduct}
             onProductAdd={addProduct}
             onReloadProducts={reloadProducts}
             currentPage={currentPage}
@@ -155,6 +166,14 @@ const AuthenticatedApp: React.FC<{ user: any }> = ({ user }) => {
             totalCount={totalCount}
             onPageChange={goToPage}
             onFilterChange={applyFilters}
+          />
+        )}
+        {activeTab === 'products' && viewingProduct && (
+          <ProductDetail
+            product={viewingProduct}
+            categories={categories}
+            locations={locations}
+            onBack={handleBackFromProductDetail}
           />
         )}
         {activeTab === 'history' && (
