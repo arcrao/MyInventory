@@ -28,7 +28,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- User Roles Table
 CREATE TABLE user_roles (
   user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  role TEXT NOT NULL DEFAULT 'user' CHECK (role IN ('admin', 'user')),
+  role TEXT NOT NULL DEFAULT 'user' CHECK (role IN ('admin', 'user', 'super_admin')),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -45,15 +45,15 @@ BEGIN
   FROM auth.users
   WHERE id = auth.uid();
 
-  -- Check if any user with this email is admin
+  -- Check if any user with this email is admin or super_admin
   SELECT role INTO user_role
   FROM user_roles ur
   JOIN auth.users au ON au.id = ur.user_id
   WHERE au.email = user_email
-    AND role = 'admin'
+    AND role IN ('admin', 'super_admin')
   LIMIT 1;
 
-  RETURN user_role = 'admin';
+  RETURN user_role IN ('admin', 'super_admin');
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
@@ -221,6 +221,36 @@ CREATE TRIGGER update_user_roles_updated_at
   BEFORE UPDATE ON user_roles
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
+
+-- Product Name Protection
+-- Function to prevent product name updates for non-super-admins
+CREATE OR REPLACE FUNCTION prevent_product_name_update_non_superadmin()
+RETURNS TRIGGER AS $$
+DECLARE
+  user_role TEXT;
+BEGIN
+  -- Check if name is being changed
+  IF NEW.name IS DISTINCT FROM OLD.name THEN
+    -- Get user's role
+    SELECT role INTO user_role
+    FROM user_roles
+    WHERE user_id = auth.uid();
+
+    -- Only allow super_admin to change names
+    IF user_role != 'super_admin' THEN
+      RAISE EXCEPTION 'Only super administrators can modify product names';
+    END IF;
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger to enforce product name protection
+CREATE TRIGGER enforce_product_name_superadmin_only
+  BEFORE UPDATE ON products
+  FOR EACH ROW
+  EXECUTE FUNCTION prevent_product_name_update_non_superadmin();
 ```
 
 ## Creating Your First Admin User
@@ -232,7 +262,12 @@ After running the schema, you need to assign at least one admin user:
 3. Go to **SQL Editor** and run:
 
 ```sql
--- Replace 'your-user-id-here' with the actual UUID
+-- Create a super_admin (can edit product names and everything else)
+INSERT INTO user_roles (user_id, role)
+VALUES ('your-user-id-here', 'super_admin')
+ON CONFLICT (user_id) DO UPDATE SET role = 'super_admin';
+
+-- OR create a regular admin (can edit everything EXCEPT product names)
 INSERT INTO user_roles (user_id, role)
 VALUES ('your-user-id-here', 'admin')
 ON CONFLICT (user_id) DO UPDATE SET role = 'admin';
@@ -240,15 +275,17 @@ ON CONFLICT (user_id) DO UPDATE SET role = 'admin';
 
 Example:
 ```sql
+-- Make yourself a super_admin
 INSERT INTO user_roles (user_id, role)
-VALUES ('a1b2c3d4-e5f6-7890-abcd-ef1234567890', 'admin')
-ON CONFLICT (user_id) DO UPDATE SET role = 'admin';
+VALUES ('a1b2c3d4-e5f6-7890-abcd-ef1234567890', 'super_admin')
+ON CONFLICT (user_id) DO UPDATE SET role = 'super_admin';
 ```
 
 ## Key Features
 
 ### Role-Based Access Control
-- **Admin users**: Can view, create, edit, and delete all data
+- **Super Admin users**: Can view, create, edit (including product names), and delete all data
+- **Admin users**: Can view, create, edit, and delete all data (except product names)
 - **Regular users**: Can only view data (read-only access)
 - User roles are stored in the `user_roles` table
 
@@ -292,7 +329,7 @@ WHERE user_id = 'user-uuid-here';
 SELECT ur.user_id, ur.role, au.email, ur.created_at
 FROM user_roles ur
 JOIN auth.users au ON ur.user_id = au.id
-WHERE ur.role = 'admin'
+WHERE ur.role IN ('admin', 'super_admin')
 ORDER BY ur.created_at DESC;
 ```
 
@@ -320,18 +357,31 @@ If you already ran the previous schema (without user_roles):
 -- Add user_roles table and function
 CREATE TABLE user_roles (
   user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  role TEXT NOT NULL DEFAULT 'user' CHECK (role IN ('admin', 'user')),
+  role TEXT NOT NULL DEFAULT 'user' CHECK (role IN ('admin', 'user', 'super_admin')),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE OR REPLACE FUNCTION is_admin(user_id UUID)
+CREATE OR REPLACE FUNCTION is_admin()
 RETURNS BOOLEAN AS $$
+DECLARE
+  user_email TEXT;
+  user_role TEXT;
 BEGIN
-  RETURN EXISTS (
-    SELECT 1 FROM user_roles
-    WHERE user_roles.user_id = $1 AND role = 'admin'
-  );
+  -- Get current user's email
+  SELECT email INTO user_email
+  FROM auth.users
+  WHERE id = auth.uid();
+
+  -- Check if any user with this email is admin or super_admin
+  SELECT role INTO user_role
+  FROM user_roles ur
+  JOIN auth.users au ON au.id = ur.user_id
+  WHERE au.email = user_email
+    AND role IN ('admin', 'super_admin')
+  LIMIT 1;
+
+  RETURN user_role IN ('admin', 'super_admin');
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
@@ -356,7 +406,12 @@ DROP POLICY IF EXISTS "Users can insert their own history" ON history;
 
 -- Create new policies (copy from the main SQL schema above)
 
--- Then assign yourself as admin:
+-- Then assign yourself as super_admin (recommended):
+INSERT INTO user_roles (user_id, role)
+VALUES ('your-user-id', 'super_admin')
+ON CONFLICT (user_id) DO UPDATE SET role = 'super_admin';
+
+-- OR assign as regular admin:
 INSERT INTO user_roles (user_id, role)
 VALUES ('your-user-id', 'admin')
 ON CONFLICT (user_id) DO UPDATE SET role = 'admin';
@@ -379,3 +434,167 @@ WHERE contact_person IS NULL;
 ALTER TABLE history DROP COLUMN IF EXISTS received_by;
 ALTER TABLE history DROP COLUMN IF EXISTS issued_to;
 ```
+
+## Migration: Add Product Name Protection (Super Admin Feature)
+
+This migration adds role-based product name protection to an existing database. Run this complete script in Supabase SQL Editor:
+
+```sql
+-- ========================================
+-- MIGRATION: Add Product Name Protection
+-- ========================================
+-- This script adds super_admin role and restricts product name editing
+-- to super_admin users only.
+
+-- Step 1: Update user_roles table to support super_admin role
+ALTER TABLE user_roles DROP CONSTRAINT IF EXISTS user_roles_role_check;
+ALTER TABLE user_roles ADD CONSTRAINT user_roles_role_check
+  CHECK (role IN ('admin', 'user', 'super_admin'));
+
+-- Step 2: Update is_admin() function to recognize super_admin
+CREATE OR REPLACE FUNCTION is_admin()
+RETURNS BOOLEAN AS $$
+DECLARE
+  user_email TEXT;
+  user_role TEXT;
+BEGIN
+  -- Get current user's email
+  SELECT email INTO user_email
+  FROM auth.users
+  WHERE id = auth.uid();
+
+  -- Check if any user with this email is admin or super_admin
+  SELECT role INTO user_role
+  FROM user_roles ur
+  JOIN auth.users au ON au.id = ur.user_id
+  WHERE au.email = user_email
+    AND role IN ('admin', 'super_admin')
+  LIMIT 1;
+
+  RETURN user_role IN ('admin', 'super_admin');
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Step 3: Create product name protection function
+CREATE OR REPLACE FUNCTION prevent_product_name_update_non_superadmin()
+RETURNS TRIGGER AS $$
+DECLARE
+  user_role TEXT;
+BEGIN
+  -- Check if name is being changed
+  IF NEW.name IS DISTINCT FROM OLD.name THEN
+    -- Get user's role
+    SELECT role INTO user_role
+    FROM user_roles
+    WHERE user_id = auth.uid();
+
+    -- Only allow super_admin to change names
+    IF user_role != 'super_admin' THEN
+      RAISE EXCEPTION 'Only super administrators can modify product names';
+    END IF;
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Step 4: Create trigger to enforce product name protection
+DROP TRIGGER IF EXISTS enforce_product_name_superadmin_only ON products;
+CREATE TRIGGER enforce_product_name_superadmin_only
+  BEFORE UPDATE ON products
+  FOR EACH ROW
+  EXECUTE FUNCTION prevent_product_name_update_non_superadmin();
+
+-- Step 5: Promote existing admins to super_admin (OPTIONAL)
+-- Uncomment ONE of the following options:
+
+-- Option A: Promote ALL existing admins to super_admin
+-- UPDATE user_roles SET role = 'super_admin' WHERE role = 'admin';
+
+-- Option B: Promote specific user to super_admin (replace 'your-user-id-here')
+-- UPDATE user_roles SET role = 'super_admin' WHERE user_id = 'your-user-id-here';
+
+-- Option C: Insert new super_admin (if user doesn't exist in user_roles yet)
+-- INSERT INTO user_roles (user_id, role)
+-- VALUES ('your-user-id-here', 'super_admin')
+-- ON CONFLICT (user_id) DO UPDATE SET role = 'super_admin';
+
+-- ========================================
+-- MIGRATION COMPLETE
+-- ========================================
+-- After running this script:
+-- 1. super_admin users can edit product names and all other data
+-- 2. admin users can edit all data EXCEPT product names
+-- 3. user role remains read-only
+--
+-- To verify, run:
+-- SELECT * FROM user_roles ORDER BY role;
+-- ========================================
+```
+
+### Post-Migration: Assign Super Admin Role
+
+After running the migration, assign at least one super_admin:
+
+**Make yourself a super_admin:**
+```sql
+-- Replace with your actual user ID
+UPDATE user_roles
+SET role = 'super_admin'
+WHERE user_id = 'your-user-id-here';
+```
+
+**Or promote all existing admins:**
+```sql
+UPDATE user_roles
+SET role = 'super_admin'
+WHERE role = 'admin';
+```
+
+### Managing Super Admin Users
+
+**Promote admin to super_admin:**
+```sql
+UPDATE user_roles
+SET role = 'super_admin'
+WHERE user_id = 'user-uuid-here';
+```
+
+**Demote super_admin to regular admin:**
+```sql
+UPDATE user_roles
+SET role = 'admin'
+WHERE user_id = 'user-uuid-here';
+```
+
+**List all super admins:**
+```sql
+SELECT ur.user_id, ur.role, au.email, ur.created_at
+FROM user_roles ur
+JOIN auth.users au ON ur.user_id = au.id
+WHERE ur.role = 'super_admin'
+ORDER BY ur.created_at DESC;
+```
+
+### Removing Product Name Protection
+
+If you need to remove this restriction later:
+
+```sql
+-- Drop the trigger
+DROP TRIGGER IF EXISTS enforce_product_name_superadmin_only ON products;
+
+-- Drop the function
+DROP FUNCTION IF EXISTS prevent_product_name_update_non_superadmin();
+
+-- Optionally revert role constraint to original
+ALTER TABLE user_roles DROP CONSTRAINT IF EXISTS user_roles_role_check;
+ALTER TABLE user_roles ADD CONSTRAINT user_roles_role_check
+  CHECK (role IN ('admin', 'user'));
+```
+
+### Role Hierarchy
+
+- **super_admin**: Full access including product name editing
+- **admin**: Can create, edit (except names), and delete products and other data
+- **user**: Read-only access to all data

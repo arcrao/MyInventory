@@ -96,7 +96,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, categories }) =>
               >
                 <div>
                   <p className="font-medium">{product.name}</p>
-                  <p className="text-sm text-gray-600">SKU: {product.sku}</p>
                 </div>
                 <div className="text-right">
                   <p className="text-red-600 font-bold">{product.quantity} units</p>

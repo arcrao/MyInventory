@@ -465,6 +465,36 @@ export class StorageService {
     console.warn('setHistory is deprecated with Supabase');
   }
 
+  static async getHistoryByProduct(productId: number): Promise<HistoryEntry[]> {
+    try {
+      console.log('[StorageService] Fetching history for product:', productId);
+
+      const { data, error } = await supabase
+        .from('history')
+        .select('*')
+        .eq('product_id', productId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      console.log('[StorageService] Fetched product history:', data?.length || 0, 'items');
+      return (data || []).map(item => ({
+        id: item.id,
+        productId: item.product_id,
+        action: item.action as 'created' | 'stock_in' | 'stock_out' | 'deleted' | 'updated',
+        quantity: item.quantity,
+        notes: item.notes || '',
+        timestamp: item.created_at,
+        contactPerson: item.contact_person,
+        pricePerUnit: item.price_per_unit ? parseFloat(item.price_per_unit) : undefined,
+        date: item.date
+      }));
+    } catch (error) {
+      console.error('Error getting product history:', error);
+      return [];
+    }
+  }
+
   static async addHistoryEntry(entry: Omit<HistoryEntry, 'id' | 'timestamp'>): Promise<void> {
     try {
       const userId = await this.getUserId();

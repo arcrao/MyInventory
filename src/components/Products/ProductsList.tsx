@@ -15,6 +15,7 @@ interface ProductsListProps {
   onEditProduct: (product: Product) => void;
   onDeleteProduct: (id: number) => void;
   onStockAdjust: (product: Product) => void;
+  onViewProduct?: (product: Product) => void;
   onProductAdd?: (product: ProductFormData, skipReload?: boolean) => Promise<void>;
   onReloadProducts?: () => Promise<void>;
   currentPage?: number;
@@ -32,6 +33,7 @@ export const ProductsList: React.FC<ProductsListProps> = ({
   onEditProduct,
   onDeleteProduct,
   onStockAdjust,
+  onViewProduct,
   onProductAdd,
   onReloadProducts,
   currentPage = 0,
@@ -175,7 +177,12 @@ export const ProductsList: React.FC<ProductsListProps> = ({
               >
                 <td className="px-4 py-3">
                   <div>
-                    <p className="font-medium">{product.name}</p>
+                    <button
+                      onClick={() => onViewProduct?.(product)}
+                      className="font-medium text-blue-600 hover:text-blue-800 hover:underline text-left"
+                    >
+                      {product.name}
+                    </button>
                     {product.specification && (
                       <p className="text-xs text-gray-500">{product.specification}</p>
                     )}

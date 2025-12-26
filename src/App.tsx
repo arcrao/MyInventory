@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Header } from './components/Layout/Header';
 import { Dashboard } from './components/Dashboard/Dashboard';
 import { ProductsList } from './components/Products/ProductsList';
+import { ProductDetail } from './components/Products/ProductDetail';
 import { ProductForm } from './components/Products/ProductForm';
 import { StockAdjustmentModal } from './components/Products/StockAdjustmentModal';
 import { HistoryView } from './components/History/HistoryView';
@@ -16,17 +17,12 @@ import { Product, TabType } from './types';
 
 // Separate component for authenticated app to ensure clean remount on auth changes
 const AuthenticatedApp: React.FC<{ user: any }> = ({ user }) => {
-  console.log('[AuthenticatedApp] ════════════════════════════════════');
-  console.log('[AuthenticatedApp] Component MOUNTING/REMOUNTING!');
-  console.log('[AuthenticatedApp] User:', { id: user.id, email: user.email, provider: user.app_metadata?.provider });
-  console.log('[AuthenticatedApp] This component will now initialize all data hooks...');
-  console.log('[AuthenticatedApp] ════════════════════════════════════');
-
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
   const [showProductForm, setShowProductForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [showStockAdjustment, setShowStockAdjustment] = useState(false);
   const [adjustingProduct, setAdjustingProduct] = useState<Product | null>(null);
+  const [viewingProduct, setViewingProduct] = useState<Product | null>(null);
 
   const {
     history,
@@ -54,16 +50,6 @@ const AuthenticatedApp: React.FC<{ user: any }> = ({ user }) => {
   } = useProducts(addHistoryEntry, user);
   const { categories, addCategory, deleteCategory } = useCategories(user);
   const { locations, addLocation, deleteLocation } = useLocations(user);
-
-  // Debug: Log data state
-  useEffect(() => {
-    console.log('[AuthenticatedApp] Data loaded:', {
-      products: products.length,
-      categories: categories.length,
-      locations: locations.length,
-      history: history.length
-    });
-  }, [products, categories, locations, history]);
 
   const handleAddProduct = () => {
     setEditingProduct(null);
@@ -114,6 +100,14 @@ const AuthenticatedApp: React.FC<{ user: any }> = ({ user }) => {
     setAdjustingProduct(null);
   };
 
+  const handleViewProduct = (product: Product) => {
+    setViewingProduct(product);
+  };
+
+  const handleBackFromProductDetail = () => {
+    setViewingProduct(null);
+  };
+
   return (
     <div className="min-h-screen bg-gray-100">
       <Header />
@@ -155,7 +149,7 @@ const AuthenticatedApp: React.FC<{ user: any }> = ({ user }) => {
         </div>
 
         {activeTab === 'dashboard' && <Dashboard products={products} categories={categories} />}
-        {activeTab === 'products' && (
+        {activeTab === 'products' && !viewingProduct && (
           <ProductsList
             products={products}
             categories={categories}
@@ -164,6 +158,7 @@ const AuthenticatedApp: React.FC<{ user: any }> = ({ user }) => {
             onEditProduct={handleEditProduct}
             onDeleteProduct={deleteProduct}
             onStockAdjust={handleStockAdjust}
+            onViewProduct={handleViewProduct}
             onProductAdd={addProduct}
             onReloadProducts={reloadProducts}
             currentPage={currentPage}
@@ -171,6 +166,14 @@ const AuthenticatedApp: React.FC<{ user: any }> = ({ user }) => {
             totalCount={totalCount}
             onPageChange={goToPage}
             onFilterChange={applyFilters}
+          />
+        )}
+        {activeTab === 'products' && viewingProduct && (
+          <ProductDetail
+            product={viewingProduct}
+            categories={categories}
+            locations={locations}
+            onBack={handleBackFromProductDetail}
           />
         )}
         {activeTab === 'history' && (
@@ -223,27 +226,6 @@ const AuthenticatedApp: React.FC<{ user: any }> = ({ user }) => {
 const App: React.FC = () => {
   const { user, loading } = useAuth();
 
-  // Debug: Log auth state
-  useEffect(() => {
-    console.log('[App] ────────────────────────────────────────');
-    console.log('[App] Auth state changed in main App component');
-    console.log('[App] Loading:', loading);
-    console.log('[App] User:', user ? {
-      id: user.id,
-      email: user.email,
-      provider: user.app_metadata?.provider
-    } : null);
-    console.log('[App] ────────────────────────────────────────');
-
-    if (!loading && user) {
-      console.log('[App] → Will render AuthenticatedApp with key:', user.id);
-    } else if (!loading && !user) {
-      console.log('[App] → Will render AuthForm (login page)');
-    } else {
-      console.log('[App] → Will render loading spinner');
-    }
-  }, [user, loading]);
-
   // Show loading state while checking authentication
   if (loading) {
     return (
@@ -258,19 +240,16 @@ const App: React.FC = () => {
 
   // Show auth form if not authenticated
   if (!user) {
-    console.log('[App] 🔒 No user - rendering AuthForm');
     return <AuthForm />;
   }
 
-  // Extra safety check - should never happen but prevents dashboard from showing without auth
+  // Extra safety check - prevents dashboard from showing without valid auth
   if (!user.id || !user.email) {
-    console.error('[App] ⚠️ Invalid user object - forcing logout');
     return <AuthForm />;
   }
 
   // Render authenticated app with key to force remount on user change
   // This ensures hooks are properly reset when switching between auth methods
-  console.log('[App] ✓ Authenticated - rendering dashboard for user:', user.email);
   return <AuthenticatedApp key={user.id} user={user} />;
 };
 
