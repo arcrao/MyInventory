@@ -379,3 +379,112 @@ WHERE contact_person IS NULL;
 ALTER TABLE history DROP COLUMN IF EXISTS received_by;
 ALTER TABLE history DROP COLUMN IF EXISTS issued_to;
 ```
+
+## Product Name Protection
+
+To prevent unauthorized editing of product names, a role-based restriction is implemented:
+
+### Super Admin Role
+
+Only users with `super_admin` role can edit product names. Regular `admin` users can edit all other product fields but cannot change names.
+
+**Setup Steps:**
+
+1. **Add super_admin role support:**
+
+```sql
+-- Update user_roles table to support super_admin role
+ALTER TABLE user_roles DROP CONSTRAINT IF EXISTS user_roles_role_check;
+ALTER TABLE user_roles ADD CONSTRAINT user_roles_role_check
+  CHECK (role IN ('admin', 'user', 'super_admin'));
+```
+
+2. **Create the protection function and trigger:**
+
+```sql
+-- Create a function that prevents name updates for non-super-admins
+CREATE OR REPLACE FUNCTION prevent_product_name_update_non_superadmin()
+RETURNS TRIGGER AS $$
+DECLARE
+  user_role TEXT;
+BEGIN
+  -- Check if name is being changed
+  IF NEW.name IS DISTINCT FROM OLD.name THEN
+    -- Get user's role
+    SELECT role INTO user_role
+    FROM user_roles
+    WHERE user_id = auth.uid();
+
+    -- Only allow super_admin to change names
+    IF user_role != 'super_admin' THEN
+      RAISE EXCEPTION 'Only super administrators can modify product names';
+    END IF;
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Create trigger to enforce this rule
+CREATE TRIGGER enforce_product_name_superadmin_only
+  BEFORE UPDATE ON products
+  FOR EACH ROW
+  EXECUTE FUNCTION prevent_product_name_update_non_superadmin();
+```
+
+3. **Assign super_admin role to trusted users:**
+
+```sql
+-- Make a user a super admin
+INSERT INTO user_roles (user_id, role)
+VALUES ('your-user-id-here', 'super_admin')
+ON CONFLICT (user_id) DO UPDATE SET role = 'super_admin';
+```
+
+### Managing Super Admin Users
+
+**Promote admin to super_admin:**
+```sql
+UPDATE user_roles
+SET role = 'super_admin'
+WHERE user_id = 'user-uuid-here';
+```
+
+**Demote super_admin to regular admin:**
+```sql
+UPDATE user_roles
+SET role = 'admin'
+WHERE user_id = 'user-uuid-here';
+```
+
+**List all super admins:**
+```sql
+SELECT ur.user_id, ur.role, au.email, ur.created_at
+FROM user_roles ur
+JOIN auth.users au ON ur.user_id = au.id
+WHERE ur.role = 'super_admin'
+ORDER BY ur.created_at DESC;
+```
+
+### Removing Product Name Protection
+
+If you need to remove this restriction later:
+
+```sql
+-- Drop the trigger
+DROP TRIGGER IF EXISTS enforce_product_name_superadmin_only ON products;
+
+-- Drop the function
+DROP FUNCTION IF EXISTS prevent_product_name_update_non_superadmin();
+
+-- Optionally revert role constraint to original
+ALTER TABLE user_roles DROP CONSTRAINT IF EXISTS user_roles_role_check;
+ALTER TABLE user_roles ADD CONSTRAINT user_roles_role_check
+  CHECK (role IN ('admin', 'user'));
+```
+
+### Role Hierarchy
+
+- **super_admin**: Full access including product name editing
+- **admin**: Can create, edit (except names), and delete products and other data
+- **user**: Read-only access to all data
