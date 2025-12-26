@@ -435,29 +435,47 @@ ALTER TABLE history DROP COLUMN IF EXISTS received_by;
 ALTER TABLE history DROP COLUMN IF EXISTS issued_to;
 ```
 
-## Product Name Protection
+## Migration: Add Product Name Protection (Super Admin Feature)
 
-To prevent unauthorized editing of product names, a role-based restriction is implemented:
-
-### Super Admin Role
-
-Only users with `super_admin` role can edit product names. Regular `admin` users can edit all other product fields but cannot change names.
-
-**Setup Steps:**
-
-1. **Add super_admin role support:**
+This migration adds role-based product name protection to an existing database. Run this complete script in Supabase SQL Editor:
 
 ```sql
--- Update user_roles table to support super_admin role
+-- ========================================
+-- MIGRATION: Add Product Name Protection
+-- ========================================
+-- This script adds super_admin role and restricts product name editing
+-- to super_admin users only.
+
+-- Step 1: Update user_roles table to support super_admin role
 ALTER TABLE user_roles DROP CONSTRAINT IF EXISTS user_roles_role_check;
 ALTER TABLE user_roles ADD CONSTRAINT user_roles_role_check
   CHECK (role IN ('admin', 'user', 'super_admin'));
-```
 
-2. **Create the protection function and trigger:**
+-- Step 2: Update is_admin() function to recognize super_admin
+CREATE OR REPLACE FUNCTION is_admin()
+RETURNS BOOLEAN AS $$
+DECLARE
+  user_email TEXT;
+  user_role TEXT;
+BEGIN
+  -- Get current user's email
+  SELECT email INTO user_email
+  FROM auth.users
+  WHERE id = auth.uid();
 
-```sql
--- Create a function that prevents name updates for non-super-admins
+  -- Check if any user with this email is admin or super_admin
+  SELECT role INTO user_role
+  FROM user_roles ur
+  JOIN auth.users au ON au.id = ur.user_id
+  WHERE au.email = user_email
+    AND role IN ('admin', 'super_admin')
+  LIMIT 1;
+
+  RETURN user_role IN ('admin', 'super_admin');
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Step 3: Create product name protection function
 CREATE OR REPLACE FUNCTION prevent_product_name_update_non_superadmin()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -480,20 +498,57 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Create trigger to enforce this rule
+-- Step 4: Create trigger to enforce product name protection
+DROP TRIGGER IF EXISTS enforce_product_name_superadmin_only ON products;
 CREATE TRIGGER enforce_product_name_superadmin_only
   BEFORE UPDATE ON products
   FOR EACH ROW
   EXECUTE FUNCTION prevent_product_name_update_non_superadmin();
+
+-- Step 5: Promote existing admins to super_admin (OPTIONAL)
+-- Uncomment ONE of the following options:
+
+-- Option A: Promote ALL existing admins to super_admin
+-- UPDATE user_roles SET role = 'super_admin' WHERE role = 'admin';
+
+-- Option B: Promote specific user to super_admin (replace 'your-user-id-here')
+-- UPDATE user_roles SET role = 'super_admin' WHERE user_id = 'your-user-id-here';
+
+-- Option C: Insert new super_admin (if user doesn't exist in user_roles yet)
+-- INSERT INTO user_roles (user_id, role)
+-- VALUES ('your-user-id-here', 'super_admin')
+-- ON CONFLICT (user_id) DO UPDATE SET role = 'super_admin';
+
+-- ========================================
+-- MIGRATION COMPLETE
+-- ========================================
+-- After running this script:
+-- 1. super_admin users can edit product names and all other data
+-- 2. admin users can edit all data EXCEPT product names
+-- 3. user role remains read-only
+--
+-- To verify, run:
+-- SELECT * FROM user_roles ORDER BY role;
+-- ========================================
 ```
 
-3. **Assign super_admin role to trusted users:**
+### Post-Migration: Assign Super Admin Role
 
+After running the migration, assign at least one super_admin:
+
+**Make yourself a super_admin:**
 ```sql
--- Make a user a super admin
-INSERT INTO user_roles (user_id, role)
-VALUES ('your-user-id-here', 'super_admin')
-ON CONFLICT (user_id) DO UPDATE SET role = 'super_admin';
+-- Replace with your actual user ID
+UPDATE user_roles
+SET role = 'super_admin'
+WHERE user_id = 'your-user-id-here';
+```
+
+**Or promote all existing admins:**
+```sql
+UPDATE user_roles
+SET role = 'super_admin'
+WHERE role = 'admin';
 ```
 
 ### Managing Super Admin Users
