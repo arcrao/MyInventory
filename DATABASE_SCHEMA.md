@@ -45,15 +45,15 @@ BEGIN
   FROM auth.users
   WHERE id = auth.uid();
 
-  -- Check if any user with this email is admin
+  -- Check if any user with this email is admin or super_admin
   SELECT role INTO user_role
   FROM user_roles ur
   JOIN auth.users au ON au.id = ur.user_id
   WHERE au.email = user_email
-    AND role = 'admin'
+    AND role IN ('admin', 'super_admin')
   LIMIT 1;
 
-  RETURN user_role = 'admin';
+  RETURN user_role IN ('admin', 'super_admin');
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
@@ -329,7 +329,7 @@ WHERE user_id = 'user-uuid-here';
 SELECT ur.user_id, ur.role, au.email, ur.created_at
 FROM user_roles ur
 JOIN auth.users au ON ur.user_id = au.id
-WHERE ur.role = 'admin'
+WHERE ur.role IN ('admin', 'super_admin')
 ORDER BY ur.created_at DESC;
 ```
 
@@ -357,18 +357,31 @@ If you already ran the previous schema (without user_roles):
 -- Add user_roles table and function
 CREATE TABLE user_roles (
   user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  role TEXT NOT NULL DEFAULT 'user' CHECK (role IN ('admin', 'user')),
+  role TEXT NOT NULL DEFAULT 'user' CHECK (role IN ('admin', 'user', 'super_admin')),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE OR REPLACE FUNCTION is_admin(user_id UUID)
+CREATE OR REPLACE FUNCTION is_admin()
 RETURNS BOOLEAN AS $$
+DECLARE
+  user_email TEXT;
+  user_role TEXT;
 BEGIN
-  RETURN EXISTS (
-    SELECT 1 FROM user_roles
-    WHERE user_roles.user_id = $1 AND role = 'admin'
-  );
+  -- Get current user's email
+  SELECT email INTO user_email
+  FROM auth.users
+  WHERE id = auth.uid();
+
+  -- Check if any user with this email is admin or super_admin
+  SELECT role INTO user_role
+  FROM user_roles ur
+  JOIN auth.users au ON au.id = ur.user_id
+  WHERE au.email = user_email
+    AND role IN ('admin', 'super_admin')
+  LIMIT 1;
+
+  RETURN user_role IN ('admin', 'super_admin');
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
@@ -393,7 +406,12 @@ DROP POLICY IF EXISTS "Users can insert their own history" ON history;
 
 -- Create new policies (copy from the main SQL schema above)
 
--- Then assign yourself as admin:
+-- Then assign yourself as super_admin (recommended):
+INSERT INTO user_roles (user_id, role)
+VALUES ('your-user-id', 'super_admin')
+ON CONFLICT (user_id) DO UPDATE SET role = 'super_admin';
+
+-- OR assign as regular admin:
 INSERT INTO user_roles (user_id, role)
 VALUES ('your-user-id', 'admin')
 ON CONFLICT (user_id) DO UPDATE SET role = 'admin';
