@@ -147,27 +147,6 @@ export class StorageService {
 
   static async updateProduct(id: number, updates: Partial<Product>): Promise<void> {
     try {
-      console.log('[StorageService] updateProduct called with id:', id, 'updates:', updates);
-
-      // First, verify the product exists and get current values
-      const { data: beforeData, error: beforeError } = await supabase
-        .from('products')
-        .select('*')
-        .eq('id', id)
-        .single();
-
-      if (beforeError) {
-        console.error('[StorageService] Error fetching product before update:', beforeError);
-        throw beforeError;
-      }
-
-      console.log('[StorageService] Product BEFORE update:', {
-        id: beforeData.id,
-        name: beforeData.name,
-        price: beforeData.price,
-        quantity: beforeData.quantity
-      });
-
       const updateData: any = {};
 
       if (updates.name !== undefined) updateData.name = updates.name;
@@ -182,48 +161,12 @@ export class StorageService {
       if (updates.specification !== undefined) updateData.specification = updates.specification;
       if (updates.unitOfMeasure !== undefined) updateData.unit_of_measure = updates.unitOfMeasure;
 
-      console.log('[StorageService] Sending to Supabase:', updateData);
-
-      // RLS policies will handle authorization (only admins can update)
-      const { data: updateResult, error, count } = await supabase
+      const { error } = await supabase
         .from('products')
         .update(updateData)
-        .eq('id', id)
-        .select();
+        .eq('id', id);
 
-      if (error) {
-        console.error('[StorageService] Supabase update error:', error);
-        throw error;
-      }
-
-      console.log('[StorageService] Update result - rows affected:', count);
-      console.log('[StorageService] Update result - returned data:', updateResult);
-
-      // Verify the update by fetching the product again
-      const { data: afterData, error: afterError } = await supabase
-        .from('products')
-        .select('*')
-        .eq('id', id)
-        .single();
-
-      if (afterError) {
-        console.error('[StorageService] Error fetching product after update:', afterError);
-        throw afterError;
-      }
-
-      console.log('[StorageService] Product AFTER update:', {
-        id: afterData.id,
-        name: afterData.name,
-        price: afterData.price,
-        quantity: afterData.quantity
-      });
-
-      // Check if the update actually happened
-      if (updates.price !== undefined && parseFloat(afterData.price) !== updates.price) {
-        console.error('[StorageService] WARNING: Price was NOT updated! Expected:', updates.price, 'Got:', afterData.price);
-      }
-
-      console.log('[StorageService] Product updated successfully');
+      if (error) throw error;
     } catch (error) {
       console.error('Error updating product:', error);
       throw error;

@@ -66,10 +66,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({
 
     if (product) {
       const updatedProduct = { ...formData, id: product.id, createdAt: product.createdAt };
-      console.log('[ProductForm] Saving updated product:', updatedProduct);
       onSave(updatedProduct);
     } else {
-      console.log('[ProductForm] Saving new product:', formData);
       onSave(formData);
     }
   };
@@ -161,7 +159,6 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                 value={formData.price}
                 onChange={(e) => {
                   const newPrice = parseFloat(e.target.value) || 0;
-                  console.log('[ProductForm] Price changed to:', newPrice);
                   setFormData({ ...formData, price: newPrice });
                 }}
                 className="w-full border rounded px-3 py-2"

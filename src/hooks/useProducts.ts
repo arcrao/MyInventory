@@ -87,10 +87,8 @@ export const useProducts = (
   };
 
   const updateProduct = async (updatedProduct: Product): Promise<void> => {
-    console.log('[useProducts] updateProduct called with:', updatedProduct);
     // Find the old product to track what changed
     const oldProduct = products.find(p => p.id === updatedProduct.id);
-    console.log('[useProducts] Old product:', oldProduct);
 
     // Generate notes about what changed
     const changes: string[] = [];
@@ -108,26 +106,17 @@ export const useProducts = (
       ? `Updated: ${changes.join(', ')}`
       : 'Product details updated';
 
-    console.log('[useProducts] Calling StorageService.updateProduct...');
     await StorageService.updateProduct(updatedProduct.id, updatedProduct);
-    console.log('[useProducts] Product updated, adding history...');
-    try {
-      await onHistoryAdd({
-        productId: updatedProduct.id,
-        productName: updatedProduct.name,  // Store product name for audit trail
-        action: 'updated',
-        quantity: 0,
-        notes: notes,
-        pricePerUnit: updatedProduct.price,  // Store the new price in history
-      });
-      console.log('[useProducts] History added successfully');
-    } catch (error) {
-      console.error('[useProducts] Failed to add history:', error);
-    }
+    await onHistoryAdd({
+      productId: updatedProduct.id,
+      productName: updatedProduct.name,  // Store product name for audit trail
+      action: 'updated',
+      quantity: 0,
+      notes: notes,
+      pricePerUnit: updatedProduct.price,  // Store the new price in history
+    });
     // Reload products to reflect changes
-    console.log('[useProducts] Reloading products...');
     await loadProducts();
-    console.log('[useProducts] Products reloaded');
   };
 
   const stockIn = async (productId: number, data: StockAdjustmentData): Promise<void> => {
