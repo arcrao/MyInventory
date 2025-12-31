@@ -74,6 +74,7 @@ export const useProducts = (
     if (newProduct) {
       await onHistoryAdd({
         productId: newProduct.id,
+        productName: newProduct.name,  // Store product name for audit trail
         action: 'created',
         quantity: productData.quantity,
         notes: 'Product created',
@@ -89,6 +90,7 @@ export const useProducts = (
     await StorageService.updateProduct(updatedProduct.id, updatedProduct);
     await onHistoryAdd({
       productId: updatedProduct.id,
+      productName: updatedProduct.name,  // Store product name for audit trail
       action: 'updated',
       quantity: 0,
       notes: 'Product details updated',
@@ -105,6 +107,7 @@ export const useProducts = (
     await StorageService.updateProduct(productId, { quantity: updatedProduct.quantity });
     await onHistoryAdd({
       productId,
+      productName: product.name,  // Store product name for audit trail
       action: 'stock_in',
       quantity: data.quantity,
       notes: data.notes || 'Stock added',
@@ -124,6 +127,7 @@ export const useProducts = (
     await StorageService.updateProduct(productId, { quantity: updatedProduct.quantity });
     await onHistoryAdd({
       productId,
+      productName: product.name,  // Store product name for audit trail
       action: 'stock_out',
       quantity: data.quantity,
       notes: data.notes || 'Stock removed',

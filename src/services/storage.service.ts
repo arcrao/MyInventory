@@ -370,7 +370,7 @@ export class StorageService {
         return paginated.map(item => ({
           id: item.id,
           productId: item.product_id,
-          productName: item.products?.name, // Include product name from JOIN
+          productName: item.product_name || item.products?.name, // Use stored name, fallback to JOIN for backward compatibility
           action: item.action as 'created' | 'stock_in' | 'stock_out' | 'deleted' | 'updated',
           quantity: item.quantity,
           notes: item.notes || '',
@@ -402,7 +402,7 @@ export class StorageService {
       return (data || []).map(item => ({
         id: item.id,
         productId: item.product_id,
-        productName: item.products?.name, // Include product name from JOIN
+        productName: item.product_name || item.products?.name, // Use stored name, fallback to JOIN for backward compatibility
         action: item.action as 'created' | 'stock_in' | 'stock_out' | 'deleted' | 'updated',
         quantity: item.quantity,
         notes: item.notes || '',
@@ -483,7 +483,7 @@ export class StorageService {
       return (data || []).map(item => ({
         id: item.id,
         productId: item.product_id,
-        productName: item.products?.name, // Include product name from JOIN
+        productName: item.product_name || item.products?.name, // Use stored name, fallback to JOIN for backward compatibility
         action: item.action as 'created' | 'stock_in' | 'stock_out' | 'deleted' | 'updated',
         quantity: item.quantity,
         notes: item.notes || '',
@@ -506,6 +506,7 @@ export class StorageService {
         .insert({
           user_id: userId,
           product_id: entry.productId,
+          product_name: entry.productName,  // Store product name for audit trail
           action: entry.action,
           quantity: entry.quantity,
           notes: entry.notes,
