@@ -335,12 +335,12 @@ export class StorageService {
       // If there's a search term, we need to fetch with product and category data
       // and filter client-side since Supabase doesn't support complex OR queries across JOINs
       if (searchTerm && searchTerm.trim()) {
-        // Fetch history with product and category joins
+        // Fetch history with product and category joins (LEFT JOIN to include deleted products)
         const { data: historyData, error: historyError } = await supabase
           .from('history')
           .select(`
             *,
-            products!inner(name, category_id, categories(name))
+            products(name, category_id, categories(name))
           `)
           .order('created_at', { ascending: false });
 
@@ -370,6 +370,7 @@ export class StorageService {
         return paginated.map(item => ({
           id: item.id,
           productId: item.product_id,
+          productName: item.product_name || item.products?.name, // Use stored name, fallback to JOIN for backward compatibility
           action: item.action as 'created' | 'stock_in' | 'stock_out' | 'deleted' | 'updated',
           quantity: item.quantity,
           notes: item.notes || '',
@@ -380,10 +381,10 @@ export class StorageService {
         }));
       }
 
-      // No search term - use efficient server-side query
+      // No search term - use efficient server-side query with JOIN to get product names
       let query = supabase
         .from('history')
-        .select('*')
+        .select('*, products(name)')
         .order('created_at', { ascending: false });
 
       // Add pagination if page is provided
@@ -401,6 +402,7 @@ export class StorageService {
       return (data || []).map(item => ({
         id: item.id,
         productId: item.product_id,
+        productName: item.product_name || item.products?.name, // Use stored name, fallback to JOIN for backward compatibility
         action: item.action as 'created' | 'stock_in' | 'stock_out' | 'deleted' | 'updated',
         quantity: item.quantity,
         notes: item.notes || '',
@@ -424,7 +426,7 @@ export class StorageService {
           .from('history')
           .select(`
             *,
-            products!inner(name, category_id, categories(name))
+            products(name, category_id, categories(name))
           `);
 
         if (error) throw error;
@@ -471,7 +473,7 @@ export class StorageService {
 
       const { data, error } = await supabase
         .from('history')
-        .select('*')
+        .select('*, products(name)')
         .eq('product_id', productId)
         .order('created_at', { ascending: false });
 
@@ -481,6 +483,7 @@ export class StorageService {
       return (data || []).map(item => ({
         id: item.id,
         productId: item.product_id,
+        productName: item.product_name || item.products?.name, // Use stored name, fallback to JOIN for backward compatibility
         action: item.action as 'created' | 'stock_in' | 'stock_out' | 'deleted' | 'updated',
         quantity: item.quantity,
         notes: item.notes || '',
@@ -503,6 +506,7 @@ export class StorageService {
         .insert({
           user_id: userId,
           product_id: entry.productId,
+          product_name: entry.productName,  // Store product name for audit trail
           action: entry.action,
           quantity: entry.quantity,
           notes: entry.notes,

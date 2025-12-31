@@ -26,7 +26,8 @@ export interface Location {
 
 export interface HistoryEntry {
   id: number;
-  productId: number;
+  productId: number | null;  // Nullable - becomes null when product is deleted (history preserved)
+  productName?: string; // Product name fetched from JOIN - avoids "Unknown Product" issue
   action: 'created' | 'stock_in' | 'stock_out' | 'deleted' | 'updated';
   quantity: number;
   notes: string;

@@ -1,5 +1,5 @@
-import React, { useState, useRef } from 'react';
-import { Plus, Edit2, Trash2, AlertTriangle, TrendingUp, Download, Upload, ChevronLeft, ChevronRight } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Plus, Edit2, Trash2, AlertTriangle, TrendingUp, Download, Upload, ChevronLeft, ChevronRight, Settings } from 'lucide-react';
 import { Product, Category, Location, ProductFormData } from '../../types';
 import { getCategoryName, getLocationName } from '../../utils/helpers';
 import { ProductFilters } from './ProductFilters';
@@ -25,6 +25,26 @@ interface ProductsListProps {
   onFilterChange?: (filters: { searchTerm: string; categoryId: string }) => void;
 }
 
+type ColumnKey = 'sku' | 'brand' | 'category' | 'location' | 'quantity' | 'price';
+
+interface ColumnVisibility {
+  sku: boolean;
+  brand: boolean;
+  category: boolean;
+  location: boolean;
+  quantity: boolean;
+  price: boolean;
+}
+
+const defaultColumnVisibility: ColumnVisibility = {
+  sku: false,  // Hidden by default
+  brand: true,
+  category: true,
+  location: true,
+  quantity: true,
+  price: true,
+};
+
 export const ProductsList: React.FC<ProductsListProps> = ({
   products,
   categories,
@@ -45,8 +65,42 @@ export const ProductsList: React.FC<ProductsListProps> = ({
   const [filters, setFilters] = useState({ searchTerm: '', categoryId: '' });
   const [importError, setImportError] = useState<string | null>(null);
   const [importSuccess, setImportSuccess] = useState<string | null>(null);
+  const [showColumnSelector, setShowColumnSelector] = useState(false);
+  const [columnVisibility, setColumnVisibility] = useState<ColumnVisibility>(defaultColumnVisibility);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const columnSelectorRef = useRef<HTMLDivElement>(null);
   const { isAdmin, loading: adminLoading } = useAdmin();
+
+  // Load column visibility from localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem('productColumnsVisibility');
+    if (saved) {
+      try {
+        setColumnVisibility(JSON.parse(saved));
+      } catch (e) {
+        console.error('Failed to parse saved column visibility', e);
+      }
+    }
+  }, []);
+
+  // Save column visibility to localStorage
+  useEffect(() => {
+    localStorage.setItem('productColumnsVisibility', JSON.stringify(columnVisibility));
+  }, [columnVisibility]);
+
+  // Close column selector when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (columnSelectorRef.current && !columnSelectorRef.current.contains(event.target as Node)) {
+        setShowColumnSelector(false);
+      }
+    };
+
+    if (showColumnSelector) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showColumnSelector]);
 
   const handleFilterChange = (newFilters: { searchTerm: string; categoryId: string }) => {
     setFilters(newFilters);
@@ -93,11 +147,61 @@ export const ProductsList: React.FC<ProductsListProps> = ({
     fileInputRef.current?.click();
   };
 
+  const toggleColumn = (column: ColumnKey) => {
+    setColumnVisibility(prev => ({
+      ...prev,
+      [column]: !prev[column],
+    }));
+  };
+
+  const columnLabels: Record<ColumnKey, string> = {
+    sku: 'SKU',
+    brand: 'Brand',
+    category: 'Category',
+    location: 'Location',
+    quantity: 'Quantity',
+    price: 'Price',
+  };
+
   return (
     <div>
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-2xl font-bold">Products</h2>
         <div className="flex gap-2">
+          {/* Column Selector Dropdown */}
+          <div className="relative" ref={columnSelectorRef}>
+            <button
+              onClick={() => setShowColumnSelector(!showColumnSelector)}
+              className="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700 flex items-center gap-2"
+              title="Select columns to display"
+            >
+              <Settings className="w-4 h-4" />
+              Columns
+            </button>
+            {showColumnSelector && (
+              <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
+                <div className="p-2">
+                  <div className="text-sm font-medium text-gray-700 px-2 py-1 border-b">
+                    Show/Hide Columns
+                  </div>
+                  {(Object.keys(columnLabels) as ColumnKey[]).map((column) => (
+                    <label
+                      key={column}
+                      className="flex items-center gap-2 px-2 py-2 hover:bg-gray-50 cursor-pointer rounded"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={columnVisibility[column]}
+                        onChange={() => toggleColumn(column)}
+                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                      />
+                      <span className="text-sm text-gray-700">{columnLabels[column]}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
           <button
             onClick={handleExport}
             className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 flex items-center gap-2"
@@ -160,12 +264,12 @@ export const ProductsList: React.FC<ProductsListProps> = ({
           <thead className="bg-gray-50">
             <tr>
               <th className="px-4 py-3 text-left text-sm font-medium">Product</th>
-              <th className="px-4 py-3 text-left text-sm font-medium">SKU</th>
-              <th className="px-4 py-3 text-left text-sm font-medium">Brand</th>
-              <th className="px-4 py-3 text-left text-sm font-medium">Category</th>
-              <th className="px-4 py-3 text-left text-sm font-medium">Location</th>
-              <th className="px-4 py-3 text-right text-sm font-medium">Quantity</th>
-              <th className="px-4 py-3 text-right text-sm font-medium">Price</th>
+              {columnVisibility.sku && <th className="px-4 py-3 text-left text-sm font-medium">SKU</th>}
+              {columnVisibility.brand && <th className="px-4 py-3 text-left text-sm font-medium">Brand</th>}
+              {columnVisibility.category && <th className="px-4 py-3 text-left text-sm font-medium">Category</th>}
+              {columnVisibility.location && <th className="px-4 py-3 text-left text-sm font-medium">Location</th>}
+              {columnVisibility.quantity && <th className="px-4 py-3 text-right text-sm font-medium">Quantity</th>}
+              {columnVisibility.price && <th className="px-4 py-3 text-right text-sm font-medium">Price</th>}
               <th className="px-4 py-3 text-right text-sm font-medium">Actions</th>
             </tr>
           </thead>
@@ -173,7 +277,7 @@ export const ProductsList: React.FC<ProductsListProps> = ({
             {products.map((product) => (
               <tr
                 key={product.id}
-                className={product.quantity <= product.minStock ? 'bg-red-50' : ''}
+                className={product.minStock > 0 && product.quantity <= product.minStock ? 'bg-red-50' : ''}
               >
                 <td className="px-4 py-3">
                   <div>
@@ -186,7 +290,7 @@ export const ProductsList: React.FC<ProductsListProps> = ({
                     {product.specification && (
                       <p className="text-xs text-gray-500">{product.specification}</p>
                     )}
-                    {product.quantity <= product.minStock && (
+                    {product.minStock > 0 && product.quantity <= product.minStock && (
                       <span className="text-xs text-red-600 flex items-center gap-1">
                         <AlertTriangle className="w-3 h-3" />
                         Low Stock
@@ -194,18 +298,24 @@ export const ProductsList: React.FC<ProductsListProps> = ({
                     )}
                   </div>
                 </td>
-                <td className="px-4 py-3 text-sm">{product.sku}</td>
-                <td className="px-4 py-3 text-sm">{product.brand || '-'}</td>
-                <td className="px-4 py-3 text-sm">
-                  {getCategoryName(categories, product.categoryId)}
-                </td>
-                <td className="px-4 py-3 text-sm">
-                  {getLocationName(locations, product.locationId)}
-                </td>
-                <td className="px-4 py-3 text-right font-medium">
-                  {product.quantity} {product.unitOfMeasure || 'pcs'}
-                </td>
-                <td className="px-4 py-3 text-right">₹{product.price.toFixed(2)}</td>
+                {columnVisibility.sku && <td className="px-4 py-3 text-sm">{product.sku}</td>}
+                {columnVisibility.brand && <td className="px-4 py-3 text-sm">{product.brand || '-'}</td>}
+                {columnVisibility.category && (
+                  <td className="px-4 py-3 text-sm">
+                    {getCategoryName(categories, product.categoryId)}
+                  </td>
+                )}
+                {columnVisibility.location && (
+                  <td className="px-4 py-3 text-sm">
+                    {getLocationName(locations, product.locationId)}
+                  </td>
+                )}
+                {columnVisibility.quantity && (
+                  <td className="px-4 py-3 text-right font-medium">
+                    {product.quantity} {product.unitOfMeasure || 'pcs'}
+                  </td>
+                )}
+                {columnVisibility.price && <td className="px-4 py-3 text-right">₹{product.price.toFixed(2)}</td>}
                 <td className="px-4 py-3 text-right">
                   <button
                     onClick={() => onStockAdjust(product)}

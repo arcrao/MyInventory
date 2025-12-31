@@ -74,6 +74,7 @@ export const useProducts = (
     if (newProduct) {
       await onHistoryAdd({
         productId: newProduct.id,
+        productName: newProduct.name,  // Store product name for audit trail
         action: 'created',
         quantity: productData.quantity,
         notes: 'Product created',
@@ -89,6 +90,7 @@ export const useProducts = (
     await StorageService.updateProduct(updatedProduct.id, updatedProduct);
     await onHistoryAdd({
       productId: updatedProduct.id,
+      productName: updatedProduct.name,  // Store product name for audit trail
       action: 'updated',
       quantity: 0,
       notes: 'Product details updated',
@@ -105,6 +107,7 @@ export const useProducts = (
     await StorageService.updateProduct(productId, { quantity: updatedProduct.quantity });
     await onHistoryAdd({
       productId,
+      productName: product.name,  // Store product name for audit trail
       action: 'stock_in',
       quantity: data.quantity,
       notes: data.notes || 'Stock added',
@@ -124,6 +127,7 @@ export const useProducts = (
     await StorageService.updateProduct(productId, { quantity: updatedProduct.quantity });
     await onHistoryAdd({
       productId,
+      productName: product.name,  // Store product name for audit trail
       action: 'stock_out',
       quantity: data.quantity,
       notes: data.notes || 'Stock removed',
@@ -135,13 +139,22 @@ export const useProducts = (
   };
 
   const deleteProduct = async (id: number): Promise<void> => {
-    await StorageService.deleteProduct(id);
+    // Find the product to get its name before deletion
+    const product = products.find(p => p.id === id);
+    const productName = product?.name || 'Unknown Product';
+
+    // Add history entry BEFORE deleting the product (so foreign key constraint works)
     await onHistoryAdd({
       productId: id,
+      productName: productName,  // Store product name for audit trail
       action: 'deleted',
       quantity: 0,
       notes: 'Product deleted',
     });
+
+    // Now delete the product (product_id in history will become NULL due to ON DELETE SET NULL)
+    await StorageService.deleteProduct(id);
+
     // Reload products to reflect changes
     await loadProducts();
   };
