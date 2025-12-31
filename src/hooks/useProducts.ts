@@ -135,13 +135,22 @@ export const useProducts = (
   };
 
   const deleteProduct = async (id: number): Promise<void> => {
-    await StorageService.deleteProduct(id);
+    // Find the product to get its name before deletion
+    const product = products.find(p => p.id === id);
+    const productName = product?.name || 'Unknown Product';
+
+    // Add history entry BEFORE deleting the product (so foreign key constraint works)
     await onHistoryAdd({
       productId: id,
+      productName: productName,  // Store product name for audit trail
       action: 'deleted',
       quantity: 0,
       notes: 'Product deleted',
     });
+
+    // Now delete the product (product_id in history will become NULL due to ON DELETE SET NULL)
+    await StorageService.deleteProduct(id);
+
     // Reload products to reflect changes
     await loadProducts();
   };

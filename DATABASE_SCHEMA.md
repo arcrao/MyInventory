@@ -96,7 +96,7 @@ CREATE TABLE products (
 CREATE TABLE history (
   id BIGSERIAL PRIMARY KEY,
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
-  product_id BIGINT REFERENCES products(id) ON DELETE CASCADE NOT NULL,
+  product_id BIGINT REFERENCES products(id) ON DELETE SET NULL,  -- Nullable to preserve history when product is deleted
   action TEXT NOT NULL CHECK (action IN ('created', 'stock_in', 'stock_out', 'deleted', 'updated')),
   quantity INTEGER NOT NULL DEFAULT 0,
   notes TEXT,
@@ -104,6 +104,8 @@ CREATE TABLE history (
   price_per_unit DECIMAL(10, 2),
   date TIMESTAMP WITH TIME ZONE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  -- Note: When a product is deleted, product_id becomes NULL but the productName
+  -- field (fetched via JOIN in queries) preserves the product name for audit trail
 );
 
 -- Indexes for performance

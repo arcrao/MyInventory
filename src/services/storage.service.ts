@@ -335,12 +335,12 @@ export class StorageService {
       // If there's a search term, we need to fetch with product and category data
       // and filter client-side since Supabase doesn't support complex OR queries across JOINs
       if (searchTerm && searchTerm.trim()) {
-        // Fetch history with product and category joins
+        // Fetch history with product and category joins (LEFT JOIN to include deleted products)
         const { data: historyData, error: historyError } = await supabase
           .from('history')
           .select(`
             *,
-            products!inner(name, category_id, categories(name))
+            products(name, category_id, categories(name))
           `)
           .order('created_at', { ascending: false });
 
@@ -426,7 +426,7 @@ export class StorageService {
           .from('history')
           .select(`
             *,
-            products!inner(name, category_id, categories(name))
+            products(name, category_id, categories(name))
           `);
 
         if (error) throw error;

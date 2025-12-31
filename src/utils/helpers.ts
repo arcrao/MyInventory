@@ -22,7 +22,8 @@ export const getLocationName = (locations: Location[], id: string): string => {
   return loc ? loc.name : 'N/A';
 };
 
-export const getProductName = (products: Product[], id: number): string => {
+export const getProductName = (products: Product[], id: number | null): string => {
+  if (id === null) return 'Deleted Product';
   const prod = products.find(p => p.id === id);
   return prod ? prod.name : 'Unknown Product';
 };
