@@ -11,7 +11,7 @@ interface QRCodeModalProps {
 }
 
 export const QRCodeModal: React.FC<QRCodeModalProps> = ({ entry, products, onClose }) => {
-  const productName = getProductName(products, entry.productId);
+  const productName = entry.productName || getProductName(products, entry.productId);
   const product = products.find(p => p.id === entry.productId);
 
   // Generate QR code data

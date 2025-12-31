@@ -140,7 +140,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
                     {formatDate(entry)}
                   </td>
                   <td className="px-4 py-3 text-sm font-medium">
-                    {getProductName(products, entry.productId)}
+                    {entry.productName || getProductName(products, entry.productId)}
                   </td>
                   <td className="px-4 py-3 text-right font-medium">
                     {entry.quantity > 0 ? entry.quantity : '-'}

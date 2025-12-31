@@ -27,6 +27,7 @@ export interface Location {
 export interface HistoryEntry {
   id: number;
   productId: number;
+  productName?: string; // Product name fetched from JOIN - avoids "Unknown Product" issue
   action: 'created' | 'stock_in' | 'stock_out' | 'deleted' | 'updated';
   quantity: number;
   notes: string;

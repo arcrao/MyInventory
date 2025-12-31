@@ -370,6 +370,7 @@ export class StorageService {
         return paginated.map(item => ({
           id: item.id,
           productId: item.product_id,
+          productName: item.products?.name, // Include product name from JOIN
           action: item.action as 'created' | 'stock_in' | 'stock_out' | 'deleted' | 'updated',
           quantity: item.quantity,
           notes: item.notes || '',
@@ -380,10 +381,10 @@ export class StorageService {
         }));
       }
 
-      // No search term - use efficient server-side query
+      // No search term - use efficient server-side query with JOIN to get product names
       let query = supabase
         .from('history')
-        .select('*')
+        .select('*, products(name)')
         .order('created_at', { ascending: false });
 
       // Add pagination if page is provided
@@ -401,6 +402,7 @@ export class StorageService {
       return (data || []).map(item => ({
         id: item.id,
         productId: item.product_id,
+        productName: item.products?.name, // Include product name from JOIN
         action: item.action as 'created' | 'stock_in' | 'stock_out' | 'deleted' | 'updated',
         quantity: item.quantity,
         notes: item.notes || '',
@@ -471,7 +473,7 @@ export class StorageService {
 
       const { data, error } = await supabase
         .from('history')
-        .select('*')
+        .select('*, products(name)')
         .eq('product_id', productId)
         .order('created_at', { ascending: false });
 
@@ -481,6 +483,7 @@ export class StorageService {
       return (data || []).map(item => ({
         id: item.id,
         productId: item.product_id,
+        productName: item.products?.name, // Include product name from JOIN
         action: item.action as 'created' | 'stock_in' | 'stock_out' | 'deleted' | 'updated',
         quantity: item.quantity,
         notes: item.notes || '',
