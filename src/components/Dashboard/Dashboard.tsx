@@ -13,9 +13,10 @@ import {
 interface DashboardProps {
   products: Product[];
   categories: Category[];
+  onViewProduct?: (product: Product) => void;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ products, categories }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ products, categories, onViewProduct }) => {
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -95,7 +96,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, categories }) =>
                 className="bg-white p-3 rounded border border-red-200 flex justify-between items-center"
               >
                 <div>
-                  <p className="font-medium">{product.name}</p>
+                  {onViewProduct ? (
+                    <button
+                      onClick={() => onViewProduct(product)}
+                      className="font-medium text-blue-600 hover:text-blue-800 hover:underline text-left"
+                    >
+                      {product.name}
+                    </button>
+                  ) : (
+                    <p className="font-medium">{product.name}</p>
+                  )}
                 </div>
                 <div className="text-right">
                   <p className="text-red-600 font-bold">{product.quantity} units</p>

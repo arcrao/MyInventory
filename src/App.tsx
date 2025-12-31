@@ -102,6 +102,7 @@ const AuthenticatedApp: React.FC<{ user: any }> = ({ user }) => {
 
   const handleViewProduct = (product: Product) => {
     setViewingProduct(product);
+    setActiveTab('products'); // Switch to products tab when viewing a product
   };
 
   const handleBackFromProductDetail = () => {
@@ -148,7 +149,13 @@ const AuthenticatedApp: React.FC<{ user: any }> = ({ user }) => {
           </button>
         </div>
 
-        {activeTab === 'dashboard' && <Dashboard products={products} categories={categories} />}
+        {activeTab === 'dashboard' && (
+          <Dashboard
+            products={products}
+            categories={categories}
+            onViewProduct={handleViewProduct}
+          />
+        )}
         {activeTab === 'products' && !viewingProduct && (
           <ProductsList
             products={products}
