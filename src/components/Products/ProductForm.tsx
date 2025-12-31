@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Product, ProductFormData, Category, Location } from '../../types';
 import { DEFAULT_PRODUCT_FORM_DATA, UNITS_OF_MEASURE } from '../../constants';
 
@@ -37,6 +37,27 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     return DEFAULT_PRODUCT_FORM_DATA;
   });
 
+  // Update formData when product prop changes
+  useEffect(() => {
+    if (product) {
+      setFormData({
+        name: product.name,
+        sku: product.sku,
+        quantity: product.quantity,
+        minStock: product.minStock,
+        price: product.price,
+        categoryId: product.categoryId,
+        locationId: product.locationId,
+        description: product.description,
+        brand: product.brand,
+        specification: product.specification,
+        unitOfMeasure: product.unitOfMeasure,
+      });
+    } else {
+      setFormData(DEFAULT_PRODUCT_FORM_DATA);
+    }
+  }, [product]);
+
   const handleSubmit = () => {
     if (!formData.name || !formData.sku || !formData.categoryId || !formData.locationId) {
       alert('Please fill in all required fields');
@@ -44,8 +65,11 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     }
 
     if (product) {
-      onSave({ ...formData, id: product.id, createdAt: product.createdAt });
+      const updatedProduct = { ...formData, id: product.id, createdAt: product.createdAt };
+      console.log('[ProductForm] Saving updated product:', updatedProduct);
+      onSave(updatedProduct);
     } else {
+      console.log('[ProductForm] Saving new product:', formData);
       onSave(formData);
     }
   };
@@ -135,9 +159,11 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                 min="0"
                 step="0.01"
                 value={formData.price}
-                onChange={(e) =>
-                  setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })
-                }
+                onChange={(e) => {
+                  const newPrice = parseFloat(e.target.value) || 0;
+                  console.log('[ProductForm] Price changed to:', newPrice);
+                  setFormData({ ...formData, price: newPrice });
+                }}
                 className="w-full border rounded px-3 py-2"
               />
             </div>

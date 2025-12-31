@@ -147,6 +147,7 @@ export class StorageService {
 
   static async updateProduct(id: number, updates: Partial<Product>): Promise<void> {
     try {
+      console.log('[StorageService] updateProduct called with id:', id, 'updates:', updates);
       const updateData: any = {};
 
       if (updates.name !== undefined) updateData.name = updates.name;
@@ -161,13 +162,19 @@ export class StorageService {
       if (updates.specification !== undefined) updateData.specification = updates.specification;
       if (updates.unitOfMeasure !== undefined) updateData.unit_of_measure = updates.unitOfMeasure;
 
+      console.log('[StorageService] Sending to Supabase:', updateData);
+
       // RLS policies will handle authorization (only admins can update)
       const { error } = await supabase
         .from('products')
         .update(updateData)
         .eq('id', id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('[StorageService] Supabase error:', error);
+        throw error;
+      }
+      console.log('[StorageService] Product updated successfully');
     } catch (error) {
       console.error('Error updating product:', error);
       throw error;
