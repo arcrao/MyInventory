@@ -17,9 +17,25 @@ export const ProductForm: React.FC<ProductFormProps> = ({
   onSave,
   onCancel,
 }) => {
-  const [formData, setFormData] = useState<ProductFormData>(
-    product || DEFAULT_PRODUCT_FORM_DATA
-  );
+  const [formData, setFormData] = useState<ProductFormData>(() => {
+    if (product) {
+      // Extract only ProductFormData fields from Product
+      return {
+        name: product.name,
+        sku: product.sku,
+        quantity: product.quantity,
+        minStock: product.minStock,
+        price: product.price,
+        categoryId: product.categoryId,
+        locationId: product.locationId,
+        description: product.description,
+        brand: product.brand,
+        specification: product.specification,
+        unitOfMeasure: product.unitOfMeasure,
+      };
+    }
+    return DEFAULT_PRODUCT_FORM_DATA;
+  });
 
   const handleSubmit = () => {
     if (!formData.name || !formData.sku || !formData.categoryId || !formData.locationId) {
