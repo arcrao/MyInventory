@@ -111,17 +111,23 @@ export const useProducts = (
     console.log('[useProducts] Calling StorageService.updateProduct...');
     await StorageService.updateProduct(updatedProduct.id, updatedProduct);
     console.log('[useProducts] Product updated, adding history...');
-    await onHistoryAdd({
-      productId: updatedProduct.id,
-      productName: updatedProduct.name,  // Store product name for audit trail
-      action: 'updated',
-      quantity: 0,
-      notes: notes,
-      pricePerUnit: updatedProduct.price,  // Store the new price in history
-    });
+    try {
+      await onHistoryAdd({
+        productId: updatedProduct.id,
+        productName: updatedProduct.name,  // Store product name for audit trail
+        action: 'updated',
+        quantity: 0,
+        notes: notes,
+        pricePerUnit: updatedProduct.price,  // Store the new price in history
+      });
+      console.log('[useProducts] History added successfully');
+    } catch (error) {
+      console.error('[useProducts] Failed to add history:', error);
+    }
     // Reload products to reflect changes
     console.log('[useProducts] Reloading products...');
     await loadProducts();
+    console.log('[useProducts] Products reloaded');
   };
 
   const stockIn = async (productId: number, data: StockAdjustmentData): Promise<void> => {
