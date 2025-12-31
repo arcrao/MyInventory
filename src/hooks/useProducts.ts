@@ -87,13 +87,33 @@ export const useProducts = (
   };
 
   const updateProduct = async (updatedProduct: Product): Promise<void> => {
+    // Find the old product to track what changed
+    const oldProduct = products.find(p => p.id === updatedProduct.id);
+
+    // Generate notes about what changed
+    const changes: string[] = [];
+    if (oldProduct) {
+      if (oldProduct.name !== updatedProduct.name) changes.push(`Name: ${updatedProduct.name}`);
+      if (oldProduct.price !== updatedProduct.price) changes.push(`Price: ₹${updatedProduct.price.toFixed(2)}`);
+      if (oldProduct.minStock !== updatedProduct.minStock) changes.push(`Min Stock: ${updatedProduct.minStock}`);
+      if (oldProduct.categoryId !== updatedProduct.categoryId) changes.push('Category updated');
+      if (oldProduct.locationId !== updatedProduct.locationId) changes.push('Location updated');
+      if (oldProduct.brand !== updatedProduct.brand) changes.push(`Brand: ${updatedProduct.brand}`);
+      if (oldProduct.sku !== updatedProduct.sku) changes.push(`SKU: ${updatedProduct.sku}`);
+    }
+
+    const notes = changes.length > 0
+      ? `Updated: ${changes.join(', ')}`
+      : 'Product details updated';
+
     await StorageService.updateProduct(updatedProduct.id, updatedProduct);
     await onHistoryAdd({
       productId: updatedProduct.id,
       productName: updatedProduct.name,  // Store product name for audit trail
       action: 'updated',
       quantity: 0,
-      notes: 'Product details updated',
+      notes: notes,
+      pricePerUnit: updatedProduct.price,  // Store the new price in history
     });
     // Reload products to reflect changes
     await loadProducts();
