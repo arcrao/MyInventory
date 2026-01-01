@@ -161,7 +161,6 @@ export class StorageService {
       if (updates.specification !== undefined) updateData.specification = updates.specification;
       if (updates.unitOfMeasure !== undefined) updateData.unit_of_measure = updates.unitOfMeasure;
 
-      // RLS policies will handle authorization (only admins can update)
       const { error } = await supabase
         .from('products')
         .update(updateData)
