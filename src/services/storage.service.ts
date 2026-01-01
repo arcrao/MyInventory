@@ -520,4 +520,78 @@ export class StorageService {
       throw error;
     }
   }
+
+  // Get ALL history entries (no pagination) - for CSV export
+  static async getAllHistory(): Promise<HistoryEntry[]> {
+    try {
+      console.log('[StorageService] Fetching ALL history entries for export');
+      const { data, error } = await supabase
+        .from('history')
+        .select('*, products(name)')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      console.log('[StorageService] Fetched all history:', data?.length || 0, 'items');
+      return (data || []).map(item => ({
+        id: item.id,
+        productId: item.product_id,
+        productName: item.product_name || item.products?.name,
+        action: item.action as 'created' | 'stock_in' | 'stock_out' | 'deleted' | 'updated',
+        quantity: item.quantity,
+        notes: item.notes || '',
+        timestamp: item.created_at,
+        contactPerson: item.contact_person,
+        pricePerUnit: item.price_per_unit ? parseFloat(item.price_per_unit) : undefined,
+        date: item.date
+      }));
+    } catch (error) {
+      console.error('Error getting all history:', error);
+      return [];
+    }
+  }
+
+  // Bulk import history entries - for CSV import
+  static async bulkImportHistory(entries: Omit<HistoryEntry, 'id' | 'timestamp'>[]): Promise<{ success: number; failed: number }> {
+    try {
+      const userId = await this.getUserId();
+      let success = 0;
+      let failed = 0;
+
+      // Insert entries in batches of 100 to avoid hitting API limits
+      const batchSize = 100;
+      for (let i = 0; i < entries.length; i += batchSize) {
+        const batch = entries.slice(i, i + batchSize);
+
+        const insertData = batch.map(entry => ({
+          user_id: userId,
+          product_id: entry.productId,
+          product_name: entry.productName,
+          action: entry.action,
+          quantity: entry.quantity,
+          notes: entry.notes,
+          contact_person: entry.contactPerson,
+          price_per_unit: entry.pricePerUnit,
+          date: entry.date
+        }));
+
+        const { error } = await supabase
+          .from('history')
+          .insert(insertData);
+
+        if (error) {
+          console.error('Error importing batch:', error);
+          failed += batch.length;
+        } else {
+          success += batch.length;
+        }
+      }
+
+      console.log(`[StorageService] Bulk import completed: ${success} success, ${failed} failed`);
+      return { success, failed };
+    } catch (error) {
+      console.error('Error bulk importing history:', error);
+      throw error;
+    }
+  }
 }

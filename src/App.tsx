@@ -33,6 +33,7 @@ const AuthenticatedApp: React.FC<{ user: any }> = ({ user }) => {
     searchTerm: historySearchTerm,
     applySearch: applyHistorySearch,
     goToPage: goToHistoryPage,
+    reloadHistory,
   } = useHistory(user);
   const {
     products,
@@ -193,6 +194,7 @@ const AuthenticatedApp: React.FC<{ user: any }> = ({ user }) => {
             searchTerm={historySearchTerm}
             onSearchChange={applyHistorySearch}
             onPageChange={goToHistoryPage}
+            onImportComplete={reloadHistory}
           />
         )}
         {activeTab === 'settings' && (

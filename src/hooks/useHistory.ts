@@ -75,5 +75,6 @@ export const useHistory = (user: User | null) => {
     goToPage,
     pageSize,
     loading,
+    reloadHistory: loadHistory,
   };
 };
