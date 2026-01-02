@@ -281,7 +281,7 @@ export const ProductsList: React.FC<ProductsListProps> = ({
             {products.map((product) => (
               <tr
                 key={product.id}
-                className={product.minStock > 0 && product.quantity <= product.minStock ? 'bg-red-50' : ''}
+                className={product.minStock > 0 && product.quantity < product.minStock ? 'bg-red-50' : ''}
               >
                 <td className="px-4 py-3">
                   <div>
@@ -294,7 +294,7 @@ export const ProductsList: React.FC<ProductsListProps> = ({
                     {product.specification && (
                       <p className="text-xs text-gray-500">{product.specification}</p>
                     )}
-                    {product.minStock > 0 && product.quantity <= product.minStock && (
+                    {product.minStock > 0 && product.quantity < product.minStock && (
                       <span className="text-xs text-red-600 flex items-center gap-1">
                         <AlertTriangle className="w-3 h-3" />
                         Low Stock

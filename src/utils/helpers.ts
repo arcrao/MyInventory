@@ -1,7 +1,7 @@
 import { Product, Category, Location } from '../types';
 
 export const getLowStockProducts = (products: Product[]): Product[] => {
-  return products.filter(p => p.minStock > 0 && p.quantity <= p.minStock);
+  return products.filter(p => p.minStock > 0 && p.quantity < p.minStock);
 };
 
 export const getTotalValue = (products: Product[]): number => {
