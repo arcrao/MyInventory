@@ -45,6 +45,7 @@ const AuthenticatedApp: React.FC<{ user: any }> = ({ user }) => {
     totalPages,
     totalCount,
     goToPage,
+    filters,
     applyFilters,
     reloadProducts,
   } = useProducts(addHistoryEntry, user);
