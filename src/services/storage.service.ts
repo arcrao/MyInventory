@@ -550,48 +550,4 @@ export class StorageService {
       return [];
     }
   }
-
-  // Bulk import history entries - for CSV import
-  static async bulkImportHistory(entries: Omit<HistoryEntry, 'id' | 'timestamp'>[]): Promise<{ success: number; failed: number }> {
-    try {
-      const userId = await this.getUserId();
-      let success = 0;
-      let failed = 0;
-
-      // Insert entries in batches of 100 to avoid hitting API limits
-      const batchSize = 100;
-      for (let i = 0; i < entries.length; i += batchSize) {
-        const batch = entries.slice(i, i + batchSize);
-
-        const insertData = batch.map(entry => ({
-          user_id: userId,
-          product_id: entry.productId,
-          product_name: entry.productName,
-          action: entry.action,
-          quantity: entry.quantity,
-          notes: entry.notes,
-          contact_person: entry.contactPerson,
-          price_per_unit: entry.pricePerUnit,
-          date: entry.date
-        }));
-
-        const { error } = await supabase
-          .from('history')
-          .insert(insertData);
-
-        if (error) {
-          console.error('Error importing batch:', error);
-          failed += batch.length;
-        } else {
-          success += batch.length;
-        }
-      }
-
-      console.log(`[StorageService] Bulk import completed: ${success} success, ${failed} failed`);
-      return { success, failed };
-    } catch (error) {
-      console.error('Error bulk importing history:', error);
-      throw error;
-    }
-  }
 }

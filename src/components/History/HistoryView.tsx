@@ -1,10 +1,10 @@
-import React, { useState, useRef } from 'react';
-import { QrCode, Search, ChevronLeft, ChevronRight, Plus, Minus, Edit, Trash, Package, Download, Upload } from 'lucide-react';
+import React, { useState } from 'react';
+import { QrCode, Search, ChevronLeft, ChevronRight, Plus, Minus, Edit, Trash, Package, Download } from 'lucide-react';
 import { HistoryEntry, Product } from '../../types';
 import { getProductName } from '../../utils/helpers';
 import { QRCodeModal } from './QRCodeModal';
 import { StorageService } from '../../services/storage.service';
-import { exportHistoryToCSV, downloadCSV, readCSVFile, parseCSVToHistory } from '../../utils/csvExport';
+import { exportHistoryToCSV, downloadCSV } from '../../utils/csvExport';
 
 interface HistoryViewProps {
   history: HistoryEntry[];
@@ -15,7 +15,6 @@ interface HistoryViewProps {
   searchTerm?: string;
   onSearchChange?: (search: string) => void;
   onPageChange?: (page: number) => void;
-  onImportComplete?: () => void;
 }
 
 export const HistoryView: React.FC<HistoryViewProps> = ({
@@ -27,13 +26,10 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
   searchTerm = '',
   onSearchChange,
   onPageChange,
-  onImportComplete,
 }) => {
   const [selectedEntry, setSelectedEntry] = useState<HistoryEntry | null>(null);
   const [localSearch, setLocalSearch] = useState(searchTerm);
   const [isExporting, setIsExporting] = useState(false);
-  const [isImporting, setIsImporting] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const getActionIcon = (action: string) => {
     switch (action) {
@@ -86,58 +82,6 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
     }
   };
 
-  const handleImportClick = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    try {
-      setIsImporting(true);
-
-      // Read CSV file
-      const csvContent = await readCSVFile(file);
-
-      // Parse CSV to history entries
-      const entries = parseCSVToHistory(csvContent);
-
-      if (entries.length === 0) {
-        alert('No valid entries found in CSV file');
-        return;
-      }
-
-      // Confirm import
-      const confirmed = window.confirm(
-        `Found ${entries.length} entries to import. This will add them to your existing history. Continue?`
-      );
-
-      if (!confirmed) return;
-
-      // Bulk import
-      const result = await StorageService.bulkImportHistory(entries);
-
-      alert(
-        `Import completed!\n\nSuccessfully imported: ${result.success}\nFailed: ${result.failed}`
-      );
-
-      // Reload history
-      if (onImportComplete) {
-        onImportComplete();
-      }
-    } catch (error) {
-      console.error('Error importing history:', error);
-      alert('Failed to import history. Please check the file format and try again.');
-    } finally {
-      setIsImporting(false);
-      // Reset file input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-    }
-  };
-
   const formatDate = (entry: HistoryEntry) => {
     if (entry.date) {
       return new Date(entry.date).toLocaleDateString();
@@ -159,34 +103,16 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
         <div className="flex justify-between items-center mb-3">
           <h2 className="text-2xl font-bold">Stock History</h2>
 
-          {/* Export/Import Buttons */}
-          <div className="flex gap-2">
-            <button
-              onClick={handleExport}
-              disabled={isExporting}
-              className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 flex items-center gap-2 disabled:bg-gray-400"
-              title="Export all history to CSV"
-            >
-              <Download className="w-4 h-4" />
-              {isExporting ? 'Exporting...' : 'Export CSV'}
-            </button>
-            <button
-              onClick={handleImportClick}
-              disabled={isImporting}
-              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 flex items-center gap-2 disabled:bg-gray-400"
-              title="Import history from CSV"
-            >
-              <Upload className="w-4 h-4" />
-              {isImporting ? 'Importing...' : 'Import CSV'}
-            </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".csv"
-              onChange={handleFileSelect}
-              className="hidden"
-            />
-          </div>
+          {/* Export Button */}
+          <button
+            onClick={handleExport}
+            disabled={isExporting}
+            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 flex items-center gap-2 disabled:bg-gray-400"
+            title="Export all history to CSV backup"
+          >
+            <Download className="w-4 h-4" />
+            {isExporting ? 'Exporting...' : 'Export CSV'}
+          </button>
         </div>
 
         {/* Search Bar */}
