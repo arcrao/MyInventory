@@ -22,6 +22,7 @@ interface ProductsListProps {
   totalPages?: number;
   totalCount?: number;
   onPageChange?: (page: number) => void;
+  currentFilters?: { searchTerm: string; categoryId: string };
   onFilterChange?: (filters: { searchTerm: string; categoryId: string }) => void;
 }
 
@@ -60,9 +61,10 @@ export const ProductsList: React.FC<ProductsListProps> = ({
   totalPages = 1,
   totalCount = 0,
   onPageChange,
+  currentFilters = { searchTerm: '', categoryId: '' },
   onFilterChange,
 }) => {
-  const [filters, setFilters] = useState({ searchTerm: '', categoryId: '' });
+  const [filters, setFilters] = useState(currentFilters);
   const [importError, setImportError] = useState<string | null>(null);
   const [importSuccess, setImportSuccess] = useState<string | null>(null);
   const [showColumnSelector, setShowColumnSelector] = useState(false);
@@ -87,6 +89,11 @@ export const ProductsList: React.FC<ProductsListProps> = ({
   useEffect(() => {
     localStorage.setItem('productColumnsVisibility', JSON.stringify(columnVisibility));
   }, [columnVisibility]);
+
+  // Sync local filters state with current filters from parent
+  useEffect(() => {
+    setFilters(currentFilters);
+  }, [currentFilters]);
 
   // Close column selector when clicking outside
   useEffect(() => {

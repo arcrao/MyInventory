@@ -172,6 +172,7 @@ const AuthenticatedApp: React.FC<{ user: any }> = ({ user }) => {
             totalPages={totalPages}
             totalCount={totalCount}
             onPageChange={goToPage}
+            currentFilters={filters}
             onFilterChange={applyFilters}
           />
         )}
