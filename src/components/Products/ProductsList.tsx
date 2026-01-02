@@ -251,7 +251,11 @@ export const ProductsList: React.FC<ProductsListProps> = ({
         </div>
       )}
 
-      <ProductFilters categories={categories} onFilterChange={handleFilterChange} />
+      <ProductFilters
+        categories={categories}
+        currentFilters={filters}
+        onFilterChange={handleFilterChange}
+      />
 
       <div className="bg-white border rounded-lg overflow-hidden">
         {products.length > 0 && (
