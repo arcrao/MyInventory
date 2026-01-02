@@ -1,18 +1,26 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, X } from 'lucide-react';
 import { Category } from '../../types';
 
 interface ProductFiltersProps {
   categories: Category[];
+  currentFilters: { searchTerm: string; categoryId: string };
   onFilterChange: (filters: { searchTerm: string; categoryId: string }) => void;
 }
 
 export const ProductFilters: React.FC<ProductFiltersProps> = ({
   categories,
+  currentFilters,
   onFilterChange,
 }) => {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [categoryId, setCategoryId] = useState('');
+  const [searchTerm, setSearchTerm] = useState(currentFilters.searchTerm);
+  const [categoryId, setCategoryId] = useState(currentFilters.categoryId);
+
+  // Sync local state with current filters when they change
+  useEffect(() => {
+    setSearchTerm(currentFilters.searchTerm);
+    setCategoryId(currentFilters.categoryId);
+  }, [currentFilters.searchTerm, currentFilters.categoryId]);
 
   const handleSearchChange = (value: string) => {
     setSearchTerm(value);

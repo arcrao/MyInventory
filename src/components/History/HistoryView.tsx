@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
-import { QrCode, Search, ChevronLeft, ChevronRight, Plus, Minus, Edit, Trash, Package } from 'lucide-react';
+import { QrCode, Search, ChevronLeft, ChevronRight, Plus, Minus, Edit, Trash, Package, Download } from 'lucide-react';
 import { HistoryEntry, Product } from '../../types';
 import { getProductName } from '../../utils/helpers';
 import { QRCodeModal } from './QRCodeModal';
+import { StorageService } from '../../services/storage.service';
+import { exportHistoryToCSV, downloadCSV } from '../../utils/csvExport';
 
 interface HistoryViewProps {
   history: HistoryEntry[];
@@ -27,6 +29,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
 }) => {
   const [selectedEntry, setSelectedEntry] = useState<HistoryEntry | null>(null);
   const [localSearch, setLocalSearch] = useState(searchTerm);
+  const [isExporting, setIsExporting] = useState(false);
 
   const getActionIcon = (action: string) => {
     switch (action) {
@@ -52,6 +55,33 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
     }
   };
 
+  const handleExport = async () => {
+    try {
+      setIsExporting(true);
+      // Fetch ALL history entries (not just current page)
+      const allHistory = await StorageService.getAllHistory();
+
+      if (allHistory.length === 0) {
+        alert('No history entries to export');
+        return;
+      }
+
+      // Convert to CSV
+      const csvContent = exportHistoryToCSV(allHistory);
+
+      // Download the file
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+      downloadCSV(csvContent, `history_backup_${timestamp}.csv`);
+
+      alert(`Successfully exported ${allHistory.length} history entries`);
+    } catch (error) {
+      console.error('Error exporting history:', error);
+      alert('Failed to export history. Please try again.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const formatDate = (entry: HistoryEntry) => {
     if (entry.date) {
       return new Date(entry.date).toLocaleDateString();
@@ -69,8 +99,21 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-bold">Stock History</h2>
+      <div className="mb-4">
+        <div className="flex justify-between items-center mb-3">
+          <h2 className="text-2xl font-bold">Stock History</h2>
+
+          {/* Export Button */}
+          <button
+            onClick={handleExport}
+            disabled={isExporting}
+            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 flex items-center gap-2 disabled:bg-gray-400"
+            title="Export all history to CSV backup"
+          >
+            <Download className="w-4 h-4" />
+            {isExporting ? 'Exporting...' : 'Export CSV'}
+          </button>
+        </div>
 
         {/* Search Bar */}
         <form onSubmit={handleSearchSubmit} className="flex gap-2">

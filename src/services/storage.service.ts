@@ -520,4 +520,34 @@ export class StorageService {
       throw error;
     }
   }
+
+  // Get ALL history entries (no pagination) - for CSV export
+  static async getAllHistory(): Promise<HistoryEntry[]> {
+    try {
+      console.log('[StorageService] Fetching ALL history entries for export');
+      const { data, error } = await supabase
+        .from('history')
+        .select('*, products(name)')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      console.log('[StorageService] Fetched all history:', data?.length || 0, 'items');
+      return (data || []).map(item => ({
+        id: item.id,
+        productId: item.product_id,
+        productName: item.product_name || item.products?.name,
+        action: item.action as 'created' | 'stock_in' | 'stock_out' | 'deleted' | 'updated',
+        quantity: item.quantity,
+        notes: item.notes || '',
+        timestamp: item.created_at,
+        contactPerson: item.contact_person,
+        pricePerUnit: item.price_per_unit ? parseFloat(item.price_per_unit) : undefined,
+        date: item.date
+      }));
+    } catch (error) {
+      console.error('Error getting all history:', error);
+      return [];
+    }
+  }
 }
