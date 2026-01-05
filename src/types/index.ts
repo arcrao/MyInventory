@@ -38,6 +38,15 @@ export interface HistoryEntry {
   date?: string;
 }
 
+export type HistoryActionFilter = 'all' | 'stock_in' | 'stock_out';
+export type HistoryDateRangeFilter = 'all' | 'today' | 'yesterday' | 'weekly' | 'current_month' | 'previous_month' | '3_months';
+
+export interface HistoryFilters {
+  action: HistoryActionFilter;
+  dateRange: HistoryDateRangeFilter;
+  searchTerm: string;
+}
+
 export type TabType = 'dashboard' | 'products' | 'history' | 'settings';
 
 export interface ProductFormData {

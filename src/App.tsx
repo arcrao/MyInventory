@@ -30,8 +30,8 @@ const AuthenticatedApp: React.FC<{ user: any }> = ({ user }) => {
     currentPage: historyPage,
     totalPages: historyTotalPages,
     totalCount: historyTotalCount,
-    searchTerm: historySearchTerm,
-    applySearch: applyHistorySearch,
+    filters: historyFilters,
+    applyFilters: applyHistoryFilters,
     goToPage: goToHistoryPage,
   } = useHistory(user);
   const {
@@ -192,8 +192,8 @@ const AuthenticatedApp: React.FC<{ user: any }> = ({ user }) => {
             currentPage={historyPage}
             totalPages={historyTotalPages}
             totalCount={historyTotalCount}
-            searchTerm={historySearchTerm}
-            onSearchChange={applyHistorySearch}
+            filters={historyFilters}
+            onFilterChange={applyHistoryFilters}
             onPageChange={goToHistoryPage}
           />
         )}
