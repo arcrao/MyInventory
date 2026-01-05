@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { HistoryEntry } from '../types';
+import { HistoryEntry, HistoryFilters } from '../types';
 import { StorageService } from '../services/storage.service';
 import { User } from '@supabase/supabase-js';
 
@@ -7,11 +7,18 @@ export const useHistory = (user: User | null) => {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [currentPage, setCurrentPage] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [filters, setFilters] = useState<HistoryFilters>({
+    searchTerm: '',
+    action: 'all',
+    dateRange: 'all'
+  });
   const [loading, setLoading] = useState(true);
   const pageSize = 50;
 
-  const loadHistory = async (page?: number, search?: string) => {
+  const loadHistory = async (
+    page?: number,
+    newFilters?: Partial<HistoryFilters>
+  ) => {
     if (!user) {
       console.log('[useHistory] No user, skipping load');
       return;
@@ -20,11 +27,21 @@ export const useHistory = (user: User | null) => {
     try {
       setLoading(true);
       const pageToLoad = page !== undefined ? page : currentPage;
-      const searchToUse = search !== undefined ? search : searchTerm;
+      const filtersToUse = newFilters ? { ...filters, ...newFilters } : filters;
 
       const [data, count] = await Promise.all([
-        StorageService.getHistory(pageToLoad, pageSize, searchToUse || undefined),
-        StorageService.getHistoryCount(searchToUse || undefined)
+        StorageService.getHistory(
+          pageToLoad,
+          pageSize,
+          filtersToUse.searchTerm || undefined,
+          filtersToUse.action,
+          filtersToUse.dateRange
+        ),
+        StorageService.getHistoryCount(
+          filtersToUse.searchTerm || undefined,
+          filtersToUse.action,
+          filtersToUse.dateRange
+        )
       ]);
 
       setHistory(data);
@@ -32,8 +49,8 @@ export const useHistory = (user: User | null) => {
       if (page !== undefined) {
         setCurrentPage(page);
       }
-      if (search !== undefined) {
-        setSearchTerm(search);
+      if (newFilters) {
+        setFilters({ ...filters, ...newFilters });
       }
     } catch (error) {
       console.error('Error loading history:', error);
@@ -42,9 +59,9 @@ export const useHistory = (user: User | null) => {
     }
   };
 
-  const applySearch = (search: string) => {
+  const applyFilters = (newFilters: Partial<HistoryFilters>) => {
     setCurrentPage(0); // Reset to first page
-    loadHistory(0, search);
+    loadHistory(0, newFilters);
   };
 
   const goToPage = (page: number) => {
@@ -70,8 +87,8 @@ export const useHistory = (user: User | null) => {
     currentPage,
     totalPages,
     totalCount,
-    searchTerm,
-    applySearch,
+    filters,
+    applyFilters,
     goToPage,
     pageSize,
     loading,

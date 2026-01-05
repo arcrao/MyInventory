@@ -1,4 +1,4 @@
-import { Product, Category, Location, HistoryEntry } from '../types';
+import { Product, Category, Location, HistoryEntry, HistoryActionFilter, HistoryDateRangeFilter } from '../types';
 import { supabase } from '../lib/supabase';
 
 export class StorageService {
@@ -9,6 +9,68 @@ export class StorageService {
       throw new Error('User not authenticated');
     }
     return user.id;
+  }
+
+  // Helper to calculate date range
+  private static getDateRangeFilter(dateRange: HistoryDateRangeFilter): { start: Date; end: Date } | null {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    switch (dateRange) {
+      case 'today':
+        return {
+          start: today,
+          end: new Date(today.getTime() + 24 * 60 * 60 * 1000 - 1)
+        };
+
+      case 'yesterday': {
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+        return {
+          start: yesterday,
+          end: new Date(yesterday.getTime() + 24 * 60 * 60 * 1000 - 1)
+        };
+      }
+
+      case 'weekly': {
+        const weekAgo = new Date(today);
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        return {
+          start: weekAgo,
+          end: now
+        };
+      }
+
+      case 'current_month': {
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        return {
+          start: monthStart,
+          end: now
+        };
+      }
+
+      case 'previous_month': {
+        const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        const prevMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+        return {
+          start: prevMonthStart,
+          end: prevMonthEnd
+        };
+      }
+
+      case '3_months': {
+        const threeMonthsAgo = new Date(today);
+        threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+        return {
+          start: threeMonthsAgo,
+          end: now
+        };
+      }
+
+      case 'all':
+      default:
+        return null;
+    }
   }
 
   // Products
@@ -327,27 +389,47 @@ export class StorageService {
   }
 
   // History
-  static async getHistory(page?: number, pageSize: number = 50, searchTerm?: string): Promise<HistoryEntry[]> {
+  static async getHistory(
+    page?: number,
+    pageSize: number = 50,
+    searchTerm?: string,
+    actionFilter: HistoryActionFilter = 'all',
+    dateRangeFilter: HistoryDateRangeFilter = 'all'
+  ): Promise<HistoryEntry[]> {
     try {
-      console.log('[StorageService] Fetching history, page:', page, 'search:', searchTerm);
+      console.log('[StorageService] Fetching history, page:', page, 'search:', searchTerm, 'action:', actionFilter, 'dateRange:', dateRangeFilter);
 
-      // If there's a search term, we need to fetch with product and category data
-      // and filter client-side since Supabase doesn't support complex OR queries across JOINs
+      // Start with base query
+      let query = supabase
+        .from('history')
+        .select(`
+          *,
+          products(name, category_id, categories(name))
+        `)
+        .order('created_at', { ascending: false });
+
+      // Apply action filter
+      if (actionFilter !== 'all') {
+        query = query.eq('action', actionFilter);
+      }
+
+      // Apply date range filter
+      const dateRange = this.getDateRangeFilter(dateRangeFilter);
+      if (dateRange) {
+        query = query
+          .gte('created_at', dateRange.start.toISOString())
+          .lte('created_at', dateRange.end.toISOString());
+      }
+
+      const { data: historyData, error: historyError } = await query;
+
+      if (historyError) throw historyError;
+
+      // Apply search filter client-side if needed
+      let filtered = historyData || [];
       if (searchTerm && searchTerm.trim()) {
-        // Fetch history with product and category joins (LEFT JOIN to include deleted products)
-        const { data: historyData, error: historyError } = await supabase
-          .from('history')
-          .select(`
-            *,
-            products(name, category_id, categories(name))
-          `)
-          .order('created_at', { ascending: false });
-
-        if (historyError) throw historyError;
-
-        // Filter client-side to include product name and category name in search
         const searchLower = searchTerm.toLowerCase();
-        const filtered = (historyData || []).filter(item => {
+        filtered = filtered.filter(item => {
           const productName = item.products?.name?.toLowerCase() || '';
           const categoryName = item.products?.categories?.name?.toLowerCase() || '';
           const notes = item.notes?.toLowerCase() || '';
@@ -360,45 +442,15 @@ export class StorageService {
             contactPerson.includes(searchLower)
           );
         });
-
-        // Apply pagination client-side
-        const from = page !== undefined && page >= 0 ? page * pageSize : 0;
-        const to = page !== undefined && page >= 0 ? from + pageSize : filtered.length;
-        const paginated = filtered.slice(from, to);
-
-        return paginated.map(item => ({
-          id: item.id,
-          productId: item.product_id,
-          productName: item.product_name || item.products?.name, // Use stored name, fallback to JOIN for backward compatibility
-          action: item.action as 'created' | 'stock_in' | 'stock_out' | 'deleted' | 'updated',
-          quantity: item.quantity,
-          notes: item.notes || '',
-          timestamp: item.created_at,
-          contactPerson: item.contact_person,
-          pricePerUnit: item.price_per_unit ? parseFloat(item.price_per_unit) : undefined,
-          date: item.date
-        }));
       }
 
-      // No search term - use efficient server-side query with JOIN to get product names
-      let query = supabase
-        .from('history')
-        .select('*, products(name)')
-        .order('created_at', { ascending: false });
+      // Apply pagination client-side
+      const from = page !== undefined && page >= 0 ? page * pageSize : 0;
+      const to = page !== undefined && page >= 0 ? from + pageSize : filtered.length;
+      const paginated = filtered.slice(from, to);
 
-      // Add pagination if page is provided
-      if (page !== undefined && page >= 0) {
-        const from = page * pageSize;
-        const to = from + pageSize - 1;
-        query = query.range(from, to);
-      }
-
-      const { data, error } = await query;
-
-      if (error) throw error;
-
-      console.log('[StorageService] Fetched history:', data?.length || 0, 'items');
-      return (data || []).map(item => ({
+      console.log('[StorageService] Fetched history:', paginated.length, 'items');
+      return paginated.map(item => ({
         id: item.id,
         productId: item.product_id,
         productName: item.product_name || item.products?.name, // Use stored name, fallback to JOIN for backward compatibility
@@ -416,23 +468,42 @@ export class StorageService {
     }
   }
 
-  static async getHistoryCount(searchTerm?: string): Promise<number> {
+  static async getHistoryCount(
+    searchTerm?: string,
+    actionFilter: HistoryActionFilter = 'all',
+    dateRangeFilter: HistoryDateRangeFilter = 'all'
+  ): Promise<number> {
     try {
-      // If there's a search term, we need to fetch all data and count client-side
-      // because we're searching across joined tables
+      // Start with base query
+      let query = supabase
+        .from('history')
+        .select(`
+          *,
+          products(name, category_id, categories(name))
+        `);
+
+      // Apply action filter
+      if (actionFilter !== 'all') {
+        query = query.eq('action', actionFilter);
+      }
+
+      // Apply date range filter
+      const dateRange = this.getDateRangeFilter(dateRangeFilter);
+      if (dateRange) {
+        query = query
+          .gte('created_at', dateRange.start.toISOString())
+          .lte('created_at', dateRange.end.toISOString());
+      }
+
+      const { data: historyData, error } = await query;
+
+      if (error) throw error;
+
+      // Apply search filter client-side if needed
+      let filtered = historyData || [];
       if (searchTerm && searchTerm.trim()) {
-        const { data: historyData, error } = await supabase
-          .from('history')
-          .select(`
-            *,
-            products(name, category_id, categories(name))
-          `);
-
-        if (error) throw error;
-
-        // Filter client-side to include product name and category name in search
         const searchLower = searchTerm.toLowerCase();
-        const filtered = (historyData || []).filter(item => {
+        filtered = filtered.filter(item => {
           const productName = item.products?.name?.toLowerCase() || '';
           const categoryName = item.products?.categories?.name?.toLowerCase() || '';
           const notes = item.notes?.toLowerCase() || '';
@@ -445,17 +516,9 @@ export class StorageService {
             contactPerson.includes(searchLower)
           );
         });
-
-        return filtered.length;
       }
 
-      // No search term - use server-side count
-      const { count, error } = await supabase
-        .from('history')
-        .select('*', { count: 'exact', head: true });
-
-      if (error) throw error;
-      return count || 0;
+      return filtered.length;
     } catch (error) {
       console.error('Error getting history count:', error);
       return 0;

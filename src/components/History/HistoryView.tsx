@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { QrCode, Search, ChevronLeft, ChevronRight, Plus, Minus, Edit, Trash, Package, Download } from 'lucide-react';
-import { HistoryEntry, Product } from '../../types';
+import { QrCode, Search, ChevronLeft, ChevronRight, Plus, Minus, Edit, Trash, Package, Download, Filter } from 'lucide-react';
+import { HistoryEntry, Product, HistoryFilters, HistoryActionFilter, HistoryDateRangeFilter } from '../../types';
 import { getProductName } from '../../utils/helpers';
 import { QRCodeModal } from './QRCodeModal';
 import { StorageService } from '../../services/storage.service';
@@ -12,8 +12,8 @@ interface HistoryViewProps {
   currentPage?: number;
   totalPages?: number;
   totalCount?: number;
-  searchTerm?: string;
-  onSearchChange?: (search: string) => void;
+  filters?: HistoryFilters;
+  onFilterChange?: (filters: Partial<HistoryFilters>) => void;
   onPageChange?: (page: number) => void;
 }
 
@@ -23,12 +23,14 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
   currentPage = 0,
   totalPages = 1,
   totalCount = 0,
-  searchTerm = '',
-  onSearchChange,
+  filters = { searchTerm: '', action: 'all', dateRange: 'all' },
+  onFilterChange,
   onPageChange,
 }) => {
   const [selectedEntry, setSelectedEntry] = useState<HistoryEntry | null>(null);
-  const [localSearch, setLocalSearch] = useState(searchTerm);
+  const [localSearch, setLocalSearch] = useState(filters.searchTerm);
+  const [localAction, setLocalAction] = useState<HistoryActionFilter>(filters.action);
+  const [localDateRange, setLocalDateRange] = useState<HistoryDateRangeFilter>(filters.dateRange);
   const [isExporting, setIsExporting] = useState(false);
 
   const getActionIcon = (action: string) => {
@@ -50,8 +52,29 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (onSearchChange) {
-      onSearchChange(localSearch);
+    applyFilters();
+  };
+
+  const applyFilters = () => {
+    if (onFilterChange) {
+      onFilterChange({
+        searchTerm: localSearch,
+        action: localAction,
+        dateRange: localDateRange
+      });
+    }
+  };
+
+  const clearFilters = () => {
+    setLocalSearch('');
+    setLocalAction('all');
+    setLocalDateRange('all');
+    if (onFilterChange) {
+      onFilterChange({
+        searchTerm: '',
+        action: 'all',
+        dateRange: 'all'
+      });
     }
   };
 
@@ -115,43 +138,74 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
           </button>
         </div>
 
-        {/* Search Bar */}
-        <form onSubmit={handleSearchSubmit} className="flex gap-2">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-            <input
-              type="text"
-              placeholder="Search product, category, notes, contact..."
-              value={localSearch}
-              onChange={(e) => setLocalSearch(e.target.value)}
-              className="pl-10 pr-4 py-2 border rounded w-80"
-            />
-          </div>
-          <button
-            type="submit"
-            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-          >
-            Search
-          </button>
-          {searchTerm && (
-            <button
-              type="button"
-              onClick={() => {
-                setLocalSearch('');
-                if (onSearchChange) onSearchChange('');
-              }}
-              className="bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300"
+        {/* Search and Filter Bar */}
+        <form onSubmit={handleSearchSubmit} className="space-y-3">
+          <div className="flex gap-2 flex-wrap">
+            {/* Search Input */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <input
+                type="text"
+                placeholder="Search product, category, notes, contact..."
+                value={localSearch}
+                onChange={(e) => setLocalSearch(e.target.value)}
+                className="pl-10 pr-4 py-2 border rounded w-80"
+              />
+            </div>
+
+            {/* Action Filter */}
+            <select
+              value={localAction}
+              onChange={(e) => setLocalAction(e.target.value as HistoryActionFilter)}
+              className="px-4 py-2 border rounded bg-white"
             >
-              Clear
+              <option value="all">All Actions</option>
+              <option value="stock_in">Stock In</option>
+              <option value="stock_out">Stock Out</option>
+            </select>
+
+            {/* Date Range Filter */}
+            <select
+              value={localDateRange}
+              onChange={(e) => setLocalDateRange(e.target.value as HistoryDateRangeFilter)}
+              className="px-4 py-2 border rounded bg-white"
+            >
+              <option value="all">All Time</option>
+              <option value="today">Today</option>
+              <option value="yesterday">Yesterday</option>
+              <option value="weekly">Last 7 Days</option>
+              <option value="current_month">Current Month</option>
+              <option value="previous_month">Previous Month</option>
+              <option value="3_months">Last 3 Months</option>
+            </select>
+
+            {/* Apply Button */}
+            <button
+              type="submit"
+              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 flex items-center gap-2"
+            >
+              <Filter className="w-4 h-4" />
+              Apply Filters
             </button>
-          )}
+
+            {/* Clear Button */}
+            {(filters.searchTerm || filters.action !== 'all' || filters.dateRange !== 'all') && (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300"
+              >
+                Clear All
+              </button>
+            )}
+          </div>
         </form>
       </div>
 
       <div className="bg-white border rounded-lg overflow-hidden">
         {history.length > 0 && (
           <div className="px-4 py-2 bg-gray-50 border-b text-sm text-gray-600">
-            Showing {history.length} {searchTerm ? 'filtered' : ''} entries
+            Showing {history.length} {(filters.searchTerm || filters.action !== 'all' || filters.dateRange !== 'all') ? 'filtered' : ''} entries
           </div>
         )}
 
@@ -227,12 +281,12 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
           </table>
         </div>
 
-        {history.length === 0 && searchTerm && (
+        {history.length === 0 && (filters.searchTerm || filters.action !== 'all' || filters.dateRange !== 'all') && (
           <div className="text-center py-12 text-gray-500">
-            No history entries match your search.
+            No history entries match your filters.
           </div>
         )}
-        {history.length === 0 && !searchTerm && (
+        {history.length === 0 && !filters.searchTerm && filters.action === 'all' && filters.dateRange === 'all' && (
           <div className="text-center py-12 text-gray-500">No history entries yet.</div>
         )}
       </div>
