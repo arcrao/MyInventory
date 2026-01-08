@@ -60,9 +60,13 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({ entry, products, onClo
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg p-6 max-w-lg w-full">
-        <div className="flex justify-between items-center mb-4">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={onClose}>
+      <div
+        className="bg-white rounded-lg max-w-lg w-full max-h-[90vh] flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Fixed Header */}
+        <div className="flex justify-between items-center p-6 pb-4 border-b flex-shrink-0">
           <h2 className="text-2xl font-bold">Transaction QR Code</h2>
           <button
             onClick={onClose}
@@ -72,7 +76,8 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({ entry, products, onClo
           </button>
         </div>
 
-        <div className="mb-4">
+        {/* Scrollable Content */}
+        <div className="overflow-y-auto flex-1 p-6">
           <div className="bg-gray-50 p-4 rounded-lg mb-4">
             <h3 className="font-semibold mb-2">Transaction Details</h3>
             <div className="space-y-1 text-sm">
@@ -108,7 +113,8 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({ entry, products, onClo
           </div>
         </div>
 
-        <div className="flex gap-2">
+        {/* Fixed Footer Buttons */}
+        <div className="p-6 pt-4 border-t flex gap-2 flex-shrink-0">
           <button
             onClick={handleDownload}
             className="flex-1 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 flex items-center justify-center gap-2"
