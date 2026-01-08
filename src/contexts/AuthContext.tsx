@@ -24,6 +24,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Check admin status
   const checkAdminStatus = async (userId: string) => {
     try {
+      console.log('[AuthContext] Checking admin status for user:', userId);
       const { data, error } = await supabase
         .from('user_roles')
         .select('role')
@@ -34,7 +35,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.error('[AuthContext] Error checking admin status:', error);
         setIsAdmin(false);
       } else {
-        setIsAdmin(data?.role === 'admin' || data?.role === 'super_admin');
+        const isAdminUser = data?.role === 'admin' || data?.role === 'super_admin';
+        console.log('[AuthContext] User role:', data?.role, 'isAdmin:', isAdminUser);
+        setIsAdmin(isAdminUser);
       }
     } catch (error) {
       console.error('[AuthContext] Error checking admin status:', error);

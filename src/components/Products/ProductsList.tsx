@@ -5,7 +5,7 @@ import { getCategoryName, getLocationName } from '../../utils/helpers';
 import { ProductFilters } from './ProductFilters';
 import { exportToCSV } from '../../utils/exportData';
 import { importFromCSV } from '../../utils/importData';
-import { useAdmin } from '../../hooks/useAdmin';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface ProductsListProps {
   products: Product[];
@@ -71,7 +71,12 @@ export const ProductsList: React.FC<ProductsListProps> = ({
   const [columnVisibility, setColumnVisibility] = useState<ColumnVisibility>(defaultColumnVisibility);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const columnSelectorRef = useRef<HTMLDivElement>(null);
-  const { isAdmin, loading: adminLoading } = useAdmin();
+  const { isAdmin, loading: adminLoading } = useAuth();
+
+  // Debug: Log admin status
+  useEffect(() => {
+    console.log('[ProductsList] Admin status:', { isAdmin, adminLoading });
+  }, [isAdmin, adminLoading]);
 
   // Load column visibility from localStorage
   useEffect(() => {
