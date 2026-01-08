@@ -242,7 +242,17 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
                     </span>
                   </td>
                   <td className="px-4 py-3 text-right font-medium">
-                    {entry.quantity > 0 ? entry.quantity : '-'}
+                    {entry.quantity > 0 ? (
+                      <>
+                        {entry.quantity}{' '}
+                        {entry.unitOfMeasure ||
+                         (entry.productId
+                           ? products.find(p => p.id === entry.productId)?.unitOfMeasure
+                           : undefined) ||
+                         'pcs'
+                        }
+                      </>
+                    ) : '-'}
                   </td>
                   <td className="px-4 py-3 text-sm">
                     {entry.contactPerson || '-'}

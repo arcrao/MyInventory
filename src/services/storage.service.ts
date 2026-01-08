@@ -460,7 +460,8 @@ export class StorageService {
         timestamp: item.created_at,
         contactPerson: item.contact_person,
         pricePerUnit: item.price_per_unit ? parseFloat(item.price_per_unit) : undefined,
-        date: item.date
+        date: item.date,
+        unitOfMeasure: item.unit_of_measure
       }));
     } catch (error) {
       console.error('Error getting history:', error);
@@ -552,7 +553,8 @@ export class StorageService {
         timestamp: item.created_at,
         contactPerson: item.contact_person,
         pricePerUnit: item.price_per_unit ? parseFloat(item.price_per_unit) : undefined,
-        date: item.date
+        date: item.date,
+        unitOfMeasure: item.unit_of_measure
       }));
     } catch (error) {
       console.error('Error getting product history:', error);
@@ -574,7 +576,8 @@ export class StorageService {
           notes: entry.notes,
           contact_person: entry.contactPerson,
           price_per_unit: entry.pricePerUnit,
-          date: entry.date
+          date: entry.date,
+          unit_of_measure: entry.unitOfMeasure || 'pcs'  // Store unit of measure for audit trail
         });
 
       if (error) throw error;
@@ -606,7 +609,8 @@ export class StorageService {
         timestamp: item.created_at,
         contactPerson: item.contact_person,
         pricePerUnit: item.price_per_unit ? parseFloat(item.price_per_unit) : undefined,
-        date: item.date
+        date: item.date,
+        unitOfMeasure: item.unit_of_measure
       }));
     } catch (error) {
       console.error('Error getting all history:', error);
