@@ -236,13 +236,15 @@ export const ProductsList: React.FC<ProductsListProps> = ({
               />
             </>
           )}
-          <button
-            onClick={onAddProduct}
-            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 flex items-center gap-2"
-          >
-            <Plus className="w-4 h-4" />
-            Add Product
-          </button>
+          {!adminLoading && isAdmin && (
+            <button
+              onClick={onAddProduct}
+              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 flex items-center gap-2"
+            >
+              <Plus className="w-4 h-4" />
+              Add Product
+            </button>
+          )}
         </div>
       </div>
 
@@ -328,31 +330,35 @@ export const ProductsList: React.FC<ProductsListProps> = ({
                 )}
                 {columnVisibility.price && <td className="px-4 py-3 text-right">₹{product.price.toFixed(2)}</td>}
                 <td className="px-4 py-3 text-right">
-                  <button
-                    onClick={() => onStockAdjust(product)}
-                    className="text-purple-600 hover:text-purple-800 p-1"
-                    title="Adjust Stock"
-                  >
-                    <TrendingUp className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => onEditProduct(product)}
-                    className="text-blue-600 hover:text-blue-800 p-1 ml-2"
-                    title="Edit Product"
-                  >
-                    <Edit2 className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (confirm('Are you sure you want to delete this product?')) {
-                        onDeleteProduct(product.id);
-                      }
-                    }}
-                    className="text-red-600 hover:text-red-800 p-1 ml-2"
-                    title="Delete Product"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  {!adminLoading && isAdmin && (
+                    <>
+                      <button
+                        onClick={() => onStockAdjust(product)}
+                        className="text-purple-600 hover:text-purple-800 p-1"
+                        title="Adjust Stock"
+                      >
+                        <TrendingUp className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => onEditProduct(product)}
+                        className="text-blue-600 hover:text-blue-800 p-1 ml-2"
+                        title="Edit Product"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (confirm('Are you sure you want to delete this product?')) {
+                            onDeleteProduct(product.id);
+                          }
+                        }}
+                        className="text-red-600 hover:text-red-800 p-1 ml-2"
+                        title="Delete Product"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </>
+                  )}
                 </td>
               </tr>
             ))}
