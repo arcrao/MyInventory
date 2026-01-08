@@ -6,6 +6,7 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
+  isAdmin: boolean;
   signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>;
   signUp: (email: string, password: string) => Promise<{ error: AuthError | null }>;
   signInWithGoogle: () => Promise<{ error: AuthError | null }>;
@@ -18,17 +19,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  // Check admin status
+  const checkAdminStatus = async (userId: string) => {
+    try {
+      console.log('[AuthContext] Checking admin status for user:', userId);
+      const { data, error } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId)
+        .single();
+
+      if (error) {
+        console.error('[AuthContext] Error checking admin status:', error);
+        setIsAdmin(false);
+      } else {
+        const isAdminUser = data?.role === 'admin' || data?.role === 'super_admin';
+        console.log('[AuthContext] User role:', data?.role, 'isAdmin:', isAdminUser);
+        setIsAdmin(isAdminUser);
+      }
+    } catch (error) {
+      console.error('[AuthContext] Error checking admin status:', error);
+      setIsAdmin(false);
+    }
+  };
 
   useEffect(() => {
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
+      if (session?.user) {
+        checkAdminStatus(session.user.id);
+      } else {
+        setIsAdmin(false);
+      }
       setLoading(false);
     }).catch((err) => {
       console.error('[AuthContext] Error getting session:', err);
       setUser(null);
       setSession(null);
+      setIsAdmin(false);
       setLoading(false);
     });
 
@@ -38,6 +70,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
+      if (session?.user) {
+        checkAdminStatus(session.user.id);
+      } else {
+        setIsAdmin(false);
+      }
       setLoading(false);
     });
 
@@ -81,6 +118,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     user,
     session,
     loading,
+    isAdmin,
     signIn,
     signUp,
     signInWithGoogle,

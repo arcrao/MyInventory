@@ -36,6 +36,7 @@ export interface HistoryEntry {
   contactPerson?: string;
   pricePerUnit?: number;
   date?: string;
+  unitOfMeasure?: string; // Unit of measure stored for audit trail
 }
 
 export type HistoryActionFilter = 'all' | 'stock_in' | 'stock_out';

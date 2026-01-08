@@ -78,6 +78,7 @@ export const useProducts = (
         action: 'created',
         quantity: productData.quantity,
         notes: 'Product created',
+        unitOfMeasure: newProduct.unitOfMeasure,  // Store unit of measure for audit trail
       });
       // Reload products to reflect changes (skip for bulk import)
       if (!skipReload) {
@@ -114,6 +115,7 @@ export const useProducts = (
       quantity: 0,
       notes: notes,
       pricePerUnit: updatedProduct.price,  // Store the new price in history
+      unitOfMeasure: updatedProduct.unitOfMeasure,  // Store unit of measure for audit trail
     });
     // Reload products to reflect changes
     await loadProducts();
@@ -134,6 +136,7 @@ export const useProducts = (
       contactPerson: data.contactPerson,
       pricePerUnit: data.pricePerUnit,
       date: data.date,
+      unitOfMeasure: product.unitOfMeasure,  // Store unit of measure for audit trail
     });
     // Reload products to reflect changes
     await loadProducts();
@@ -153,6 +156,7 @@ export const useProducts = (
       notes: data.notes || 'Stock removed',
       contactPerson: data.contactPerson,
       date: data.date,
+      unitOfMeasure: product.unitOfMeasure,  // Store unit of measure for audit trail
     });
     // Reload products to reflect changes
     await loadProducts();
@@ -170,6 +174,7 @@ export const useProducts = (
       action: 'deleted',
       quantity: 0,
       notes: 'Product deleted',
+      unitOfMeasure: product?.unitOfMeasure,  // Store unit of measure for audit trail
     });
 
     // Now delete the product (product_id in history will become NULL due to ON DELETE SET NULL)
