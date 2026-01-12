@@ -617,4 +617,69 @@ export class StorageService {
       return [];
     }
   }
+
+  // Transactional Stock Operations (RPC)
+  // These use PostgreSQL functions to ensure atomicity
+
+  /**
+   * Add stock to a product using atomic transaction
+   * Updates product quantity and creates history entry in single transaction
+   */
+  static async stockInProduct(
+    productId: number,
+    quantity: number,
+    notes?: string,
+    contactPerson?: string,
+    pricePerUnit?: number,
+    date?: string
+  ): Promise<{ success: boolean; newQuantity: number; message: string }> {
+    try {
+      const { data, error } = await supabase.rpc('stock_in_product', {
+        p_product_id: productId,
+        p_quantity: quantity,
+        p_notes: notes || null,
+        p_contact_person: contactPerson || null,
+        p_price_per_unit: pricePerUnit || null,
+        p_date: date || null
+      });
+
+      if (error) throw error;
+
+      return data;
+    } catch (error) {
+      console.error('Error in stock-in transaction:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Remove stock from a product using atomic transaction
+   * Updates product quantity and creates history entry in single transaction
+   */
+  static async stockOutProduct(
+    productId: number,
+    quantity: number,
+    notes?: string,
+    contactPerson?: string,
+    pricePerUnit?: number,
+    date?: string
+  ): Promise<{ success: boolean; newQuantity: number; message: string }> {
+    try {
+      const { data, error } = await supabase.rpc('stock_out_product', {
+        p_product_id: productId,
+        p_quantity: quantity,
+        p_notes: notes || null,
+        p_contact_person: contactPerson || null,
+        p_price_per_unit: pricePerUnit || null,
+        p_date: date || null
+      });
+
+      if (error) throw error;
+
+      return data;
+    } catch (error) {
+      console.error('Error in stock-out transaction:', error);
+      throw error;
+    }
+  }
 }

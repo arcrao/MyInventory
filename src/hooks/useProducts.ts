@@ -122,42 +122,31 @@ export const useProducts = (
   };
 
   const stockIn = async (productId: number, data: StockAdjustmentData): Promise<void> => {
-    const product = products.find(p => p.id === productId);
-    if (!product) return;
-
-    const updatedProduct = { ...product, quantity: product.quantity + data.quantity };
-    await StorageService.updateProduct(productId, { quantity: updatedProduct.quantity });
-    await onHistoryAdd({
+    // Use atomic RPC transaction (single database call)
+    // Both product update and history insert happen in one transaction
+    await StorageService.stockInProduct(
       productId,
-      productName: product.name,  // Store product name for audit trail
-      action: 'stock_in',
-      quantity: data.quantity,
-      notes: data.notes || 'Stock added',
-      contactPerson: data.contactPerson,
-      pricePerUnit: data.pricePerUnit,
-      date: data.date,
-      unitOfMeasure: product.unitOfMeasure,  // Store unit of measure for audit trail
-    });
+      data.quantity,
+      data.notes || 'Stock added',
+      data.contactPerson,
+      data.pricePerUnit,
+      data.date
+    );
     // Reload products to reflect changes
     await loadProducts();
   };
 
   const stockOut = async (productId: number, data: StockAdjustmentData): Promise<void> => {
-    const product = products.find(p => p.id === productId);
-    if (!product) return;
-
-    const updatedProduct = { ...product, quantity: product.quantity - data.quantity };
-    await StorageService.updateProduct(productId, { quantity: updatedProduct.quantity });
-    await onHistoryAdd({
+    // Use atomic RPC transaction (single database call)
+    // Both product update and history insert happen in one transaction
+    await StorageService.stockOutProduct(
       productId,
-      productName: product.name,  // Store product name for audit trail
-      action: 'stock_out',
-      quantity: data.quantity,
-      notes: data.notes || 'Stock removed',
-      contactPerson: data.contactPerson,
-      date: data.date,
-      unitOfMeasure: product.unitOfMeasure,  // Store unit of measure for audit trail
-    });
+      data.quantity,
+      data.notes || 'Stock removed',
+      data.contactPerson,
+      data.pricePerUnit,
+      data.date
+    );
     // Reload products to reflect changes
     await loadProducts();
   };
