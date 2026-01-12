@@ -44,48 +44,48 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, categories, onVi
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-blue-50 p-6 rounded-lg border border-blue-200">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-blue-50 p-4 sm:p-6 rounded-lg border border-blue-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-blue-600 font-medium">Total Products</p>
-              <p className="text-3xl font-bold text-blue-900">{totalProducts}</p>
+              <p className="text-xs sm:text-sm text-blue-600 font-medium">Total Products</p>
+              <p className="text-2xl sm:text-3xl font-bold text-blue-900">{totalProducts}</p>
             </div>
-            <Package className="w-12 h-12 text-blue-600" />
+            <Package className="w-10 h-10 sm:w-12 sm:h-12 text-blue-600" />
           </div>
         </div>
-        <div className="bg-green-50 p-6 rounded-lg border border-green-200">
+        <div className="bg-green-50 p-4 sm:p-6 rounded-lg border border-green-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-green-600 font-medium">Total Items</p>
-              <p className="text-3xl font-bold text-green-900">{totalQuantity}</p>
+              <p className="text-xs sm:text-sm text-green-600 font-medium">Total Items</p>
+              <p className="text-2xl sm:text-3xl font-bold text-green-900">{totalQuantity}</p>
             </div>
-            <TrendingUp className="w-12 h-12 text-green-600" />
+            <TrendingUp className="w-10 h-10 sm:w-12 sm:h-12 text-green-600" />
           </div>
         </div>
-        <div className="bg-purple-50 p-6 rounded-lg border border-purple-200">
+        <div className="bg-purple-50 p-4 sm:p-6 rounded-lg border border-purple-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-purple-600 font-medium">Total Value</p>
-              <p className="text-3xl font-bold text-purple-900">₹{totalValue.toFixed(2)}</p>
+              <p className="text-xs sm:text-sm text-purple-600 font-medium">Total Value</p>
+              <p className="text-2xl sm:text-3xl font-bold text-purple-900">₹{totalValue.toFixed(2)}</p>
             </div>
-            <BarChart3 className="w-12 h-12 text-purple-600" />
+            <BarChart3 className="w-10 h-10 sm:w-12 sm:h-12 text-purple-600" />
           </div>
         </div>
-        <div className="bg-red-50 p-6 rounded-lg border border-red-200">
+        <div className="bg-red-50 p-4 sm:p-6 rounded-lg border border-red-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-red-600 font-medium">Low Stock Items</p>
-              <p className="text-3xl font-bold text-red-900">{lowStockItems.length}</p>
+              <p className="text-xs sm:text-sm text-red-600 font-medium">Low Stock Items</p>
+              <p className="text-2xl sm:text-3xl font-bold text-red-900">{lowStockItems.length}</p>
             </div>
-            <AlertTriangle className="w-12 h-12 text-red-600" />
+            <AlertTriangle className="w-10 h-10 sm:w-12 sm:h-12 text-red-600" />
           </div>
         </div>
       </div>
 
       {lowStockItems.length > 0 && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-          <h3 className="text-lg font-bold text-red-900 mb-4 flex items-center gap-2">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 sm:p-6">
+          <h3 className="text-base sm:text-lg font-bold text-red-900 mb-4 flex items-center gap-2">
             <AlertTriangle className="w-5 h-5" />
             Low Stock Alerts
           </h3>
@@ -93,23 +93,23 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, categories, onVi
             {lowStockItems.map((product) => (
               <div
                 key={product.id}
-                className="bg-white p-3 rounded border border-red-200 flex justify-between items-center"
+                className="bg-white p-3 rounded border border-red-200 flex justify-between items-center gap-2"
               >
-                <div>
+                <div className="flex-1 min-w-0">
                   {onViewProduct ? (
                     <button
                       onClick={() => onViewProduct(product)}
-                      className="font-medium text-blue-600 hover:text-blue-800 hover:underline text-left"
+                      className="font-medium text-blue-600 hover:text-blue-800 hover:underline text-left text-sm sm:text-base truncate block w-full"
                     >
                       {product.name}
                     </button>
                   ) : (
-                    <p className="font-medium">{product.name}</p>
+                    <p className="font-medium text-sm sm:text-base truncate">{product.name}</p>
                   )}
                 </div>
-                <div className="text-right">
-                  <p className="text-red-600 font-bold">{product.quantity} units</p>
-                  <p className="text-sm text-gray-600">Min: {product.minStock}</p>
+                <div className="text-right flex-shrink-0">
+                  <p className="text-red-600 font-bold text-sm">{product.quantity}</p>
+                  <p className="text-xs text-gray-600">Min: {product.minStock}</p>
                 </div>
               </div>
             ))}
@@ -117,8 +117,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, categories, onVi
         </div>
       )}
 
-      <div className="bg-white border rounded-lg p-6">
-        <h3 className="text-lg font-bold mb-4">Stock by Category</h3>
+      <div className="bg-white border rounded-lg p-4 sm:p-6">
+        <h3 className="text-base sm:text-lg font-bold mb-4">Stock by Category</h3>
         {loading ? (
           <div className="text-center py-8 text-gray-500">Loading...</div>
         ) : (
@@ -129,10 +129,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, categories, onVi
               return (
                 <div
                   key={cat.id}
-                  className="flex justify-between items-center p-3 bg-gray-50 rounded"
+                  className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-3 bg-gray-50 rounded gap-1"
                 >
-                  <span className="font-medium">{cat.name}</span>
-                  <span className="text-gray-600">
+                  <span className="font-medium text-sm sm:text-base">{cat.name}</span>
+                  <span className="text-gray-600 text-xs sm:text-sm">
                     {catProducts.length} products, {catQuantity} items
                   </span>
                 </div>

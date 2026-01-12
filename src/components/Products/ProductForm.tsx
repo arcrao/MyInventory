@@ -73,20 +73,20 @@ export const ProductForm: React.FC<ProductFormProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <h2 className="text-2xl font-bold mb-4">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-3 sm:p-4 z-50">
+      <div className="bg-white rounded-lg p-4 sm:p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <h2 className="text-xl sm:text-2xl font-bold mb-4">
           {product ? 'Edit Product' : 'Add New Product'}
         </h2>
         <div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">Product Name *</label>
               <input
                 type="text"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full border rounded px-3 py-2"
+                className="w-full border rounded px-3 py-2 min-h-[44px] text-base"
               />
             </div>
             <div>
@@ -95,7 +95,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                 type="text"
                 value={formData.sku}
                 onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
-                className="w-full border rounded px-3 py-2"
+                className="w-full border rounded px-3 py-2 min-h-[44px] text-base"
               />
             </div>
             <div>
@@ -216,16 +216,16 @@ export const ProductForm: React.FC<ProductFormProps> = ({
               />
             </div>
           </div>
-          <div className="flex gap-2 mt-6">
+          <div className="flex flex-col sm:flex-row gap-2 mt-6">
             <button
               onClick={handleSubmit}
-              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 font-medium min-h-[44px] text-sm sm:text-base"
             >
               {product ? 'Update' : 'Add'} Product
             </button>
             <button
               onClick={onCancel}
-              className="bg-gray-300 px-4 py-2 rounded hover:bg-gray-400"
+              className="bg-gray-300 px-4 py-2 rounded hover:bg-gray-400 min-h-[44px] text-sm sm:text-base"
             >
               Cancel
             </button>

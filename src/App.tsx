@@ -113,36 +113,36 @@ const AuthenticatedApp: React.FC<{ user: any }> = ({ user }) => {
     <div className="min-h-screen bg-gray-100">
       <Header />
 
-      <div className="max-w-7xl mx-auto p-6">
-        <div className="flex gap-2 mb-6 overflow-x-auto">
+      <div className="max-w-7xl mx-auto p-3 sm:p-4 md:p-6">
+        <div className="flex gap-2 mb-4 md:mb-6 overflow-x-auto pb-2 -mx-3 px-3 sm:mx-0 sm:px-0">
           <button
             onClick={() => setActiveTab('dashboard')}
-            className={`px-4 py-2 rounded whitespace-nowrap ${
-              activeTab === 'dashboard' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700'
+            className={`px-4 py-2.5 rounded whitespace-nowrap text-sm font-medium min-h-[44px] transition-colors ${
+              activeTab === 'dashboard' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
             }`}
           >
             Dashboard
           </button>
           <button
             onClick={() => setActiveTab('products')}
-            className={`px-4 py-2 rounded whitespace-nowrap ${
-              activeTab === 'products' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700'
+            className={`px-4 py-2.5 rounded whitespace-nowrap text-sm font-medium min-h-[44px] transition-colors ${
+              activeTab === 'products' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
             }`}
           >
             Products
           </button>
           <button
             onClick={() => setActiveTab('history')}
-            className={`px-4 py-2 rounded whitespace-nowrap ${
-              activeTab === 'history' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700'
+            className={`px-4 py-2.5 rounded whitespace-nowrap text-sm font-medium min-h-[44px] transition-colors ${
+              activeTab === 'history' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
             }`}
           >
             History
           </button>
           <button
             onClick={() => setActiveTab('settings')}
-            className={`px-4 py-2 rounded whitespace-nowrap ${
-              activeTab === 'settings' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700'
+            className={`px-4 py-2.5 rounded whitespace-nowrap text-sm font-medium min-h-[44px] transition-colors ${
+              activeTab === 'settings' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
             }`}
           >
             Settings

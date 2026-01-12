@@ -177,18 +177,19 @@ export const ProductsList: React.FC<ProductsListProps> = ({
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-bold">Products</h2>
-        <div className="flex gap-2">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+        <h2 className="text-xl sm:text-2xl font-bold">Products</h2>
+        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
           {/* Column Selector Dropdown */}
           <div className="relative" ref={columnSelectorRef}>
             <button
               onClick={() => setShowColumnSelector(!showColumnSelector)}
-              className="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700 flex items-center gap-2"
+              className="bg-gray-600 text-white px-3 sm:px-4 py-2 rounded hover:bg-gray-700 flex items-center gap-2 text-sm min-h-[44px]"
               title="Select columns to display"
             >
               <Settings className="w-4 h-4" />
-              Columns
+              <span className="hidden sm:inline">Columns</span>
+              <span className="sm:hidden">Cols</span>
             </button>
             {showColumnSelector && (
               <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
@@ -216,21 +217,21 @@ export const ProductsList: React.FC<ProductsListProps> = ({
           </div>
           <button
             onClick={handleExport}
-            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 flex items-center gap-2"
+            className="bg-green-600 text-white px-3 sm:px-4 py-2 rounded hover:bg-green-700 flex items-center gap-2 text-sm min-h-[44px]"
             title="Export all products to CSV"
           >
             <Download className="w-4 h-4" />
-            Export
+            <span className="hidden sm:inline">Export</span>
           </button>
           {!adminLoading && isAdmin && (
             <>
               <button
                 onClick={handleImportClick}
-                className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700 flex items-center gap-2"
+                className="bg-purple-600 text-white px-3 sm:px-4 py-2 rounded hover:bg-purple-700 flex items-center gap-2 text-sm min-h-[44px]"
                 title="Import products from CSV"
               >
                 <Upload className="w-4 h-4" />
-                Import
+                <span className="hidden sm:inline">Import</span>
               </button>
               <input
                 ref={fileInputRef}
@@ -244,10 +245,10 @@ export const ProductsList: React.FC<ProductsListProps> = ({
           {!adminLoading && isAdmin && (
             <button
               onClick={onAddProduct}
-              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 flex items-center gap-2"
+              className="bg-blue-600 text-white px-3 sm:px-4 py-2 rounded hover:bg-blue-700 flex items-center gap-2 text-sm min-h-[44px] font-medium"
             >
               <Plus className="w-4 h-4" />
-              Add Product
+              <span>Add</span>
             </button>
           )}
         </div>
@@ -278,7 +279,106 @@ export const ProductsList: React.FC<ProductsListProps> = ({
           </div>
         )}
 
-        <table className="w-full">
+        {/* Mobile Card View */}
+        <div className="block md:hidden divide-y">
+          {products.map((product) => (
+            <div
+              key={product.id}
+              className={`p-4 ${product.minStock > 0 && product.quantity < product.minStock ? 'bg-red-50' : ''}`}
+            >
+              <div className="flex justify-between items-start mb-2">
+                <div className="flex-1 min-w-0 pr-2">
+                  <button
+                    onClick={() => onViewProduct?.(product)}
+                    className="font-medium text-blue-600 hover:text-blue-800 hover:underline text-left text-base block truncate w-full"
+                  >
+                    {product.name}
+                  </button>
+                  {product.specification && (
+                    <p className="text-xs text-gray-500 truncate">{product.specification}</p>
+                  )}
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <div className="font-bold text-lg">{product.quantity}</div>
+                  <div className="text-xs text-gray-500">{product.unitOfMeasure || 'pcs'}</div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm mb-3">
+                {columnVisibility.sku && (
+                  <>
+                    <div className="text-gray-500">SKU:</div>
+                    <div className="text-gray-900">{product.sku}</div>
+                  </>
+                )}
+                {columnVisibility.brand && product.brand && (
+                  <>
+                    <div className="text-gray-500">Brand:</div>
+                    <div className="text-gray-900">{product.brand}</div>
+                  </>
+                )}
+                {columnVisibility.category && (
+                  <>
+                    <div className="text-gray-500">Category:</div>
+                    <div className="text-gray-900">{getCategoryName(categories, product.categoryId)}</div>
+                  </>
+                )}
+                {columnVisibility.location && (
+                  <>
+                    <div className="text-gray-500">Location:</div>
+                    <div className="text-gray-900">{getLocationName(locations, product.locationId)}</div>
+                  </>
+                )}
+                {columnVisibility.price && (
+                  <>
+                    <div className="text-gray-500">Price:</div>
+                    <div className="text-gray-900 font-medium">₹{product.price.toFixed(2)}</div>
+                  </>
+                )}
+              </div>
+
+              {product.minStock > 0 && product.quantity < product.minStock && (
+                <div className="text-xs text-red-600 flex items-center gap-1 mb-2">
+                  <AlertTriangle className="w-3 h-3" />
+                  Low Stock (Min: {product.minStock})
+                </div>
+              )}
+
+              {!adminLoading && isAdmin && (
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => onStockAdjust(product)}
+                    className="flex-1 bg-purple-600 text-white px-3 py-2 rounded hover:bg-purple-700 flex items-center justify-center gap-2 text-sm min-h-[44px]"
+                  >
+                    <TrendingUp className="w-4 h-4" />
+                    Stock
+                  </button>
+                  <button
+                    onClick={() => onEditProduct(product)}
+                    className="flex-1 bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700 flex items-center justify-center gap-2 text-sm min-h-[44px]"
+                  >
+                    <Edit2 className="w-4 h-4" />
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (confirm('Are you sure you want to delete this product?')) {
+                        onDeleteProduct(product.id);
+                      }
+                    }}
+                    className="bg-red-600 text-white px-3 py-2 rounded hover:bg-red-700 flex items-center justify-center min-h-[44px]"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Desktop Table View */}
+        <div className="hidden md:block overflow-x-auto">
+          <table className="w-full min-w-[800px]">
           <thead className="bg-gray-50">
             <tr>
               <th className="px-4 py-3 text-left text-sm font-medium">Product</th>
@@ -369,6 +469,7 @@ export const ProductsList: React.FC<ProductsListProps> = ({
             ))}
           </tbody>
         </table>
+        </div>
         {products.length === 0 && (filters.categoryId || filters.searchTerm) && (
           <div className="text-center py-12 text-gray-500">
             No products match your filters. Try adjusting your search criteria.
