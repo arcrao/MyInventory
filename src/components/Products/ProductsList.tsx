@@ -177,18 +177,19 @@ export const ProductsList: React.FC<ProductsListProps> = ({
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-bold">Products</h2>
-        <div className="flex gap-2">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+        <h2 className="text-xl sm:text-2xl font-bold">Products</h2>
+        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
           {/* Column Selector Dropdown */}
           <div className="relative" ref={columnSelectorRef}>
             <button
               onClick={() => setShowColumnSelector(!showColumnSelector)}
-              className="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700 flex items-center gap-2"
+              className="bg-gray-600 text-white px-3 sm:px-4 py-2 rounded hover:bg-gray-700 flex items-center gap-2 text-sm min-h-[44px]"
               title="Select columns to display"
             >
               <Settings className="w-4 h-4" />
-              Columns
+              <span className="hidden sm:inline">Columns</span>
+              <span className="sm:hidden">Cols</span>
             </button>
             {showColumnSelector && (
               <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
@@ -216,21 +217,21 @@ export const ProductsList: React.FC<ProductsListProps> = ({
           </div>
           <button
             onClick={handleExport}
-            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 flex items-center gap-2"
+            className="bg-green-600 text-white px-3 sm:px-4 py-2 rounded hover:bg-green-700 flex items-center gap-2 text-sm min-h-[44px]"
             title="Export all products to CSV"
           >
             <Download className="w-4 h-4" />
-            Export
+            <span className="hidden sm:inline">Export</span>
           </button>
           {!adminLoading && isAdmin && (
             <>
               <button
                 onClick={handleImportClick}
-                className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700 flex items-center gap-2"
+                className="bg-purple-600 text-white px-3 sm:px-4 py-2 rounded hover:bg-purple-700 flex items-center gap-2 text-sm min-h-[44px]"
                 title="Import products from CSV"
               >
                 <Upload className="w-4 h-4" />
-                Import
+                <span className="hidden sm:inline">Import</span>
               </button>
               <input
                 ref={fileInputRef}
@@ -244,10 +245,10 @@ export const ProductsList: React.FC<ProductsListProps> = ({
           {!adminLoading && isAdmin && (
             <button
               onClick={onAddProduct}
-              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 flex items-center gap-2"
+              className="bg-blue-600 text-white px-3 sm:px-4 py-2 rounded hover:bg-blue-700 flex items-center gap-2 text-sm min-h-[44px] font-medium"
             >
               <Plus className="w-4 h-4" />
-              Add Product
+              <span>Add</span>
             </button>
           )}
         </div>
@@ -278,7 +279,8 @@ export const ProductsList: React.FC<ProductsListProps> = ({
           </div>
         )}
 
-        <table className="w-full">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[800px]">
           <thead className="bg-gray-50">
             <tr>
               <th className="px-4 py-3 text-left text-sm font-medium">Product</th>
@@ -369,6 +371,7 @@ export const ProductsList: React.FC<ProductsListProps> = ({
             ))}
           </tbody>
         </table>
+        </div>
         {products.length === 0 && (filters.categoryId || filters.searchTerm) && (
           <div className="text-center py-12 text-gray-500">
             No products match your filters. Try adjusting your search criteria.

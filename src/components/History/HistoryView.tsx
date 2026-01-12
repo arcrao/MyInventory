@@ -123,14 +123,14 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
   return (
     <div>
       <div className="mb-4">
-        <div className="flex justify-between items-center mb-3">
-          <h2 className="text-2xl font-bold">Stock History</h2>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-3">
+          <h2 className="text-xl sm:text-2xl font-bold">Stock History</h2>
 
           {/* Export Button */}
           <button
             onClick={handleExport}
             disabled={isExporting}
-            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 flex items-center gap-2 disabled:bg-gray-400"
+            className="bg-green-600 text-white px-3 sm:px-4 py-2 rounded hover:bg-green-700 flex items-center gap-2 disabled:bg-gray-400 text-sm min-h-[44px] w-full sm:w-auto justify-center"
             title="Export all history to CSV backup"
           >
             <Download className="w-4 h-4" />
@@ -142,14 +142,14 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
         <form onSubmit={handleSearchSubmit} className="space-y-3">
           <div className="flex gap-2 flex-wrap">
             {/* Search Input */}
-            <div className="relative">
+            <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <input
                 type="text"
-                placeholder="Search product, category, notes, contact..."
+                placeholder="Search..."
                 value={localSearch}
                 onChange={(e) => setLocalSearch(e.target.value)}
-                className="pl-10 pr-4 py-2 border rounded w-80"
+                className="pl-10 pr-4 py-2 border rounded w-full text-sm min-h-[44px]"
               />
             </div>
 
@@ -157,7 +157,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
             <select
               value={localAction}
               onChange={(e) => setLocalAction(e.target.value as HistoryActionFilter)}
-              className="px-4 py-2 border rounded bg-white"
+              className="px-3 sm:px-4 py-2 border rounded bg-white text-sm min-h-[44px]"
             >
               <option value="all">All Actions</option>
               <option value="stock_in">Stock In</option>
@@ -168,7 +168,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
             <select
               value={localDateRange}
               onChange={(e) => setLocalDateRange(e.target.value as HistoryDateRangeFilter)}
-              className="px-4 py-2 border rounded bg-white"
+              className="px-3 sm:px-4 py-2 border rounded bg-white text-sm min-h-[44px]"
             >
               <option value="all">All Time</option>
               <option value="today">Today</option>
@@ -182,10 +182,11 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
             {/* Apply Button */}
             <button
               type="submit"
-              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 flex items-center gap-2"
+              className="bg-blue-600 text-white px-3 sm:px-4 py-2 rounded hover:bg-blue-700 flex items-center gap-2 text-sm min-h-[44px]"
             >
               <Filter className="w-4 h-4" />
-              Apply Filters
+              <span className="hidden sm:inline">Apply Filters</span>
+              <span className="sm:hidden">Apply</span>
             </button>
 
             {/* Clear Button */}
@@ -193,9 +194,10 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
               <button
                 type="button"
                 onClick={clearFilters}
-                className="bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300"
+                className="bg-gray-200 text-gray-700 px-3 sm:px-4 py-2 rounded hover:bg-gray-300 text-sm min-h-[44px]"
               >
-                Clear All
+                <span className="hidden sm:inline">Clear All</span>
+                <span className="sm:hidden">Clear</span>
               </button>
             )}
           </div>
@@ -303,22 +305,22 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
 
       {/* Pagination Controls */}
       {totalPages > 1 && onPageChange && (
-        <div className="mt-4 flex items-center justify-between">
-          <div className="text-sm text-gray-600">
-            Showing {currentPage * 50 + 1} to {Math.min((currentPage + 1) * 50, totalCount)} of {totalCount} entries
+        <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="text-xs sm:text-sm text-gray-600 text-center sm:text-left">
+            Showing {currentPage * 50 + 1} to {Math.min((currentPage + 1) * 50, totalCount)} of {totalCount}
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => onPageChange(currentPage - 1)}
               disabled={currentPage === 0}
-              className={`px-3 py-1 rounded flex items-center gap-1 ${
+              className={`px-3 py-2 rounded flex items-center gap-1 text-sm min-h-[44px] ${
                 currentPage === 0
                   ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                   : 'bg-white border hover:bg-gray-50'
               }`}
             >
               <ChevronLeft className="w-4 h-4" />
-              Previous
+              <span className="hidden sm:inline">Previous</span>
             </button>
             <div className="flex items-center gap-1">
               {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
@@ -336,7 +338,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
                   <button
                     key={pageNum}
                     onClick={() => onPageChange(pageNum)}
-                    className={`px-3 py-1 rounded ${
+                    className={`px-3 py-2 rounded text-sm min-h-[44px] min-w-[44px] ${
                       currentPage === pageNum
                         ? 'bg-blue-600 text-white'
                         : 'bg-white border hover:bg-gray-50'
@@ -350,13 +352,13 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
             <button
               onClick={() => onPageChange(currentPage + 1)}
               disabled={currentPage >= totalPages - 1}
-              className={`px-3 py-1 rounded flex items-center gap-1 ${
+              className={`px-3 py-2 rounded flex items-center gap-1 text-sm min-h-[44px] ${
                 currentPage >= totalPages - 1
                   ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                   : 'bg-white border hover:bg-gray-50'
               }`}
             >
-              Next
+              <span className="hidden sm:inline">Next</span>
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>
