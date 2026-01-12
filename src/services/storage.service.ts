@@ -162,7 +162,12 @@ export class StorageService {
     console.warn('setProducts is deprecated with Supabase');
   }
 
+  /**
+   * @deprecated Use addProductWithHistory() instead for atomic transactions
+   * This method is kept for backward compatibility but should not be used
+   */
   static async addProduct(product: Omit<Product, 'id' | 'createdAt'>): Promise<Product | null> {
+    console.warn('addProduct() is deprecated. Use addProductWithHistory() for atomic operations.');
     try {
       const userId = await this.getUserId();
       const { data, error } = await supabase
@@ -207,7 +212,12 @@ export class StorageService {
     }
   }
 
+  /**
+   * @deprecated Use updateProductWithHistory() instead for atomic transactions
+   * This method is kept for backward compatibility but should not be used
+   */
   static async updateProduct(id: number, updates: Partial<Product>): Promise<void> {
+    console.warn('updateProduct() is deprecated. Use updateProductWithHistory() for atomic operations.');
     try {
       const updateData: any = {};
 
@@ -235,9 +245,14 @@ export class StorageService {
     }
   }
 
+  /**
+   * @deprecated Use deleteProductWithHistory() instead for atomic transactions
+   * This method is kept for backward compatibility but should not be used
+   */
   static async deleteProduct(id: number): Promise<void> {
+    console.warn('deleteProduct() is deprecated. Use deleteProductWithHistory() for atomic operations.');
     try {
-      // RLS policies will handle authorization (only admins can delete)
+      // RLS policies will handle authorization (only super_admins can delete)
       const { error } = await supabase
         .from('products')
         .delete()
@@ -615,6 +630,159 @@ export class StorageService {
     } catch (error) {
       console.error('Error getting all history:', error);
       return [];
+    }
+  }
+
+  // Transactional Product CRUD Operations (RPC)
+  // These use PostgreSQL functions to ensure atomicity
+
+  /**
+   * Add a new product with history entry using atomic transaction
+   * Inserts product and creates history entry in single transaction
+   */
+  static async addProductWithHistory(
+    product: Omit<Product, 'id' | 'createdAt'>
+  ): Promise<{ success: boolean; productId: number; message: string }> {
+    try {
+      const { data, error } = await supabase.rpc('add_product_with_history', {
+        p_name: product.name,
+        p_sku: product.sku,
+        p_quantity: product.quantity,
+        p_min_stock: product.minStock,
+        p_price: product.price,
+        p_category_id: product.categoryId || null,
+        p_location_id: product.locationId || null,
+        p_description: product.description || null,
+        p_brand: product.brand || null,
+        p_specification: product.specification || null,
+        p_unit_of_measure: product.unitOfMeasure
+      });
+
+      if (error) throw error;
+
+      return data;
+    } catch (error) {
+      console.error('Error in add product transaction:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update a product with history entry using atomic transaction
+   * Updates product and creates history entry in single transaction
+   */
+  static async updateProductWithHistory(
+    id: number,
+    updates: Partial<Product>
+  ): Promise<{ success: boolean; message: string }> {
+    try {
+      const { data, error } = await supabase.rpc('update_product_with_history', {
+        p_product_id: id,
+        p_name: updates.name !== undefined ? updates.name : null,
+        p_sku: updates.sku !== undefined ? updates.sku : null,
+        p_quantity: updates.quantity !== undefined ? updates.quantity : null,
+        p_min_stock: updates.minStock !== undefined ? updates.minStock : null,
+        p_price: updates.price !== undefined ? updates.price : null,
+        p_category_id: updates.categoryId !== undefined ? (updates.categoryId || null) : null,
+        p_location_id: updates.locationId !== undefined ? (updates.locationId || null) : null,
+        p_description: updates.description !== undefined ? updates.description : null,
+        p_brand: updates.brand !== undefined ? updates.brand : null,
+        p_specification: updates.specification !== undefined ? updates.specification : null,
+        p_unit_of_measure: updates.unitOfMeasure !== undefined ? updates.unitOfMeasure : null
+      });
+
+      if (error) throw error;
+
+      return data;
+    } catch (error) {
+      console.error('Error in update product transaction:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete a product with history entry using atomic transaction
+   * Creates history entry and deletes product in single transaction
+   */
+  static async deleteProductWithHistory(
+    id: number
+  ): Promise<{ success: boolean; message: string }> {
+    try {
+      const { data, error } = await supabase.rpc('delete_product_with_history', {
+        p_product_id: id
+      });
+
+      if (error) throw error;
+
+      return data;
+    } catch (error) {
+      console.error('Error in delete product transaction:', error);
+      throw error;
+    }
+  }
+
+  // Transactional Stock Operations (RPC)
+  // These use PostgreSQL functions to ensure atomicity
+
+  /**
+   * Add stock to a product using atomic transaction
+   * Updates product quantity and creates history entry in single transaction
+   */
+  static async stockInProduct(
+    productId: number,
+    quantity: number,
+    notes?: string,
+    contactPerson?: string,
+    pricePerUnit?: number,
+    date?: string
+  ): Promise<{ success: boolean; newQuantity: number; message: string }> {
+    try {
+      const { data, error } = await supabase.rpc('stock_in_product', {
+        p_product_id: productId,
+        p_quantity: quantity,
+        p_notes: notes || null,
+        p_contact_person: contactPerson || null,
+        p_price_per_unit: pricePerUnit || null,
+        p_date: date || null
+      });
+
+      if (error) throw error;
+
+      return data;
+    } catch (error) {
+      console.error('Error in stock-in transaction:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Remove stock from a product using atomic transaction
+   * Updates product quantity and creates history entry in single transaction
+   */
+  static async stockOutProduct(
+    productId: number,
+    quantity: number,
+    notes?: string,
+    contactPerson?: string,
+    pricePerUnit?: number,
+    date?: string
+  ): Promise<{ success: boolean; newQuantity: number; message: string }> {
+    try {
+      const { data, error } = await supabase.rpc('stock_out_product', {
+        p_product_id: productId,
+        p_quantity: quantity,
+        p_notes: notes || null,
+        p_contact_person: contactPerson || null,
+        p_price_per_unit: pricePerUnit || null,
+        p_date: date || null
+      });
+
+      if (error) throw error;
+
+      return data;
+    } catch (error) {
+      console.error('Error in stock-out transaction:', error);
+      throw error;
     }
   }
 }

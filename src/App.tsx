@@ -26,7 +26,6 @@ const AuthenticatedApp: React.FC<{ user: any }> = ({ user }) => {
 
   const {
     history,
-    addHistoryEntry,
     currentPage: historyPage,
     totalPages: historyTotalPages,
     totalCount: historyTotalCount,
@@ -48,7 +47,7 @@ const AuthenticatedApp: React.FC<{ user: any }> = ({ user }) => {
     filters,
     applyFilters,
     reloadProducts,
-  } = useProducts(addHistoryEntry, user);
+  } = useProducts(user);
   const { categories, addCategory, deleteCategory } = useCategories(user);
   const { locations, addLocation, deleteLocation } = useLocations(user);
 
