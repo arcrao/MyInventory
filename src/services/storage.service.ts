@@ -162,7 +162,12 @@ export class StorageService {
     console.warn('setProducts is deprecated with Supabase');
   }
 
+  /**
+   * @deprecated Use addProductWithHistory() instead for atomic transactions
+   * This method is kept for backward compatibility but should not be used
+   */
   static async addProduct(product: Omit<Product, 'id' | 'createdAt'>): Promise<Product | null> {
+    console.warn('addProduct() is deprecated. Use addProductWithHistory() for atomic operations.');
     try {
       const userId = await this.getUserId();
       const { data, error } = await supabase
@@ -207,7 +212,12 @@ export class StorageService {
     }
   }
 
+  /**
+   * @deprecated Use updateProductWithHistory() instead for atomic transactions
+   * This method is kept for backward compatibility but should not be used
+   */
   static async updateProduct(id: number, updates: Partial<Product>): Promise<void> {
+    console.warn('updateProduct() is deprecated. Use updateProductWithHistory() for atomic operations.');
     try {
       const updateData: any = {};
 
@@ -235,9 +245,14 @@ export class StorageService {
     }
   }
 
+  /**
+   * @deprecated Use deleteProductWithHistory() instead for atomic transactions
+   * This method is kept for backward compatibility but should not be used
+   */
   static async deleteProduct(id: number): Promise<void> {
+    console.warn('deleteProduct() is deprecated. Use deleteProductWithHistory() for atomic operations.');
     try {
-      // RLS policies will handle authorization (only admins can delete)
+      // RLS policies will handle authorization (only super_admins can delete)
       const { error } = await supabase
         .from('products')
         .delete()
