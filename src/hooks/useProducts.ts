@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Product, ProductFormData, HistoryEntry } from '../types';
+import { Product, ProductFormData } from '../types';
 import { StorageService } from '../services/storage.service';
 import { User } from '@supabase/supabase-js';
 
@@ -11,10 +11,7 @@ interface StockAdjustmentData {
   date: string;
 }
 
-export const useProducts = (
-  onHistoryAdd: (entry: Omit<HistoryEntry, 'id' | 'timestamp'>) => Promise<void>,
-  user: User | null
-) => {
+export const useProducts = (user: User | null) => {
   const [products, setProducts] = useState<Product[]>([]);
   const [currentPage, setCurrentPage] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
