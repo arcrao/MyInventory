@@ -70,53 +70,22 @@ export const useProducts = (
   }, [user, currentPage]);
 
   const addProduct = async (productData: ProductFormData, skipReload: boolean = false): Promise<void> => {
-    const newProduct = await StorageService.addProduct(productData);
-    if (newProduct) {
-      await onHistoryAdd({
-        productId: newProduct.id,
-        productName: newProduct.name,  // Store product name for audit trail
-        action: 'created',
-        quantity: productData.quantity,
-        notes: 'Product created',
-        unitOfMeasure: newProduct.unitOfMeasure,  // Store unit of measure for audit trail
-      });
-      // Reload products to reflect changes (skip for bulk import)
-      if (!skipReload) {
-        await loadProducts();
-      }
+    // Use atomic RPC transaction (single database call)
+    // Both product insert and history insert happen in one transaction
+    await StorageService.addProductWithHistory(productData);
+
+    // Reload products to reflect changes (skip for bulk import)
+    if (!skipReload) {
+      await loadProducts();
     }
   };
 
   const updateProduct = async (updatedProduct: Product): Promise<void> => {
-    // Find the old product to track what changed
-    const oldProduct = products.find(p => p.id === updatedProduct.id);
+    // Use atomic RPC transaction (single database call)
+    // Both product update and history insert happen in one transaction
+    // The RPC function handles change tracking and history notes
+    await StorageService.updateProductWithHistory(updatedProduct.id, updatedProduct);
 
-    // Generate notes about what changed
-    const changes: string[] = [];
-    if (oldProduct) {
-      if (oldProduct.name !== updatedProduct.name) changes.push(`Name: ${updatedProduct.name}`);
-      if (oldProduct.price !== updatedProduct.price) changes.push(`Price: ₹${updatedProduct.price.toFixed(2)}`);
-      if (oldProduct.minStock !== updatedProduct.minStock) changes.push(`Min Stock: ${updatedProduct.minStock}`);
-      if (oldProduct.categoryId !== updatedProduct.categoryId) changes.push('Category updated');
-      if (oldProduct.locationId !== updatedProduct.locationId) changes.push('Location updated');
-      if (oldProduct.brand !== updatedProduct.brand) changes.push(`Brand: ${updatedProduct.brand}`);
-      if (oldProduct.sku !== updatedProduct.sku) changes.push(`SKU: ${updatedProduct.sku}`);
-    }
-
-    const notes = changes.length > 0
-      ? `Updated: ${changes.join(', ')}`
-      : 'Product details updated';
-
-    await StorageService.updateProduct(updatedProduct.id, updatedProduct);
-    await onHistoryAdd({
-      productId: updatedProduct.id,
-      productName: updatedProduct.name,  // Store product name for audit trail
-      action: 'updated',
-      quantity: 0,
-      notes: notes,
-      pricePerUnit: updatedProduct.price,  // Store the new price in history
-      unitOfMeasure: updatedProduct.unitOfMeasure,  // Store unit of measure for audit trail
-    });
     // Reload products to reflect changes
     await loadProducts();
   };
@@ -152,22 +121,10 @@ export const useProducts = (
   };
 
   const deleteProduct = async (id: number): Promise<void> => {
-    // Find the product to get its name before deletion
-    const product = products.find(p => p.id === id);
-    const productName = product?.name || 'Unknown Product';
-
-    // Add history entry BEFORE deleting the product (so foreign key constraint works)
-    await onHistoryAdd({
-      productId: id,
-      productName: productName,  // Store product name for audit trail
-      action: 'deleted',
-      quantity: 0,
-      notes: 'Product deleted',
-      unitOfMeasure: product?.unitOfMeasure,  // Store unit of measure for audit trail
-    });
-
-    // Now delete the product (product_id in history will become NULL due to ON DELETE SET NULL)
-    await StorageService.deleteProduct(id);
+    // Use atomic RPC transaction (single database call)
+    // History entry is created BEFORE product deletion in one transaction
+    // This ensures audit trail is preserved even if product is deleted
+    await StorageService.deleteProductWithHistory(id);
 
     // Reload products to reflect changes
     await loadProducts();
