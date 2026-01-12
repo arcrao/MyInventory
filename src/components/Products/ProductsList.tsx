@@ -279,7 +279,105 @@ export const ProductsList: React.FC<ProductsListProps> = ({
           </div>
         )}
 
-        <div className="overflow-x-auto">
+        {/* Mobile Card View */}
+        <div className="block md:hidden divide-y">
+          {products.map((product) => (
+            <div
+              key={product.id}
+              className={`p-4 ${product.minStock > 0 && product.quantity < product.minStock ? 'bg-red-50' : ''}`}
+            >
+              <div className="flex justify-between items-start mb-2">
+                <div className="flex-1 min-w-0 pr-2">
+                  <button
+                    onClick={() => onViewProduct?.(product)}
+                    className="font-medium text-blue-600 hover:text-blue-800 hover:underline text-left text-base block truncate w-full"
+                  >
+                    {product.name}
+                  </button>
+                  {product.specification && (
+                    <p className="text-xs text-gray-500 truncate">{product.specification}</p>
+                  )}
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <div className="font-bold text-lg">{product.quantity}</div>
+                  <div className="text-xs text-gray-500">{product.unitOfMeasure || 'pcs'}</div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm mb-3">
+                {columnVisibility.sku && (
+                  <>
+                    <div className="text-gray-500">SKU:</div>
+                    <div className="text-gray-900">{product.sku}</div>
+                  </>
+                )}
+                {columnVisibility.brand && product.brand && (
+                  <>
+                    <div className="text-gray-500">Brand:</div>
+                    <div className="text-gray-900">{product.brand}</div>
+                  </>
+                )}
+                {columnVisibility.category && (
+                  <>
+                    <div className="text-gray-500">Category:</div>
+                    <div className="text-gray-900">{getCategoryName(categories, product.categoryId)}</div>
+                  </>
+                )}
+                {columnVisibility.location && (
+                  <>
+                    <div className="text-gray-500">Location:</div>
+                    <div className="text-gray-900">{getLocationName(locations, product.locationId)}</div>
+                  </>
+                )}
+                {columnVisibility.price && (
+                  <>
+                    <div className="text-gray-500">Price:</div>
+                    <div className="text-gray-900 font-medium">₹{product.price.toFixed(2)}</div>
+                  </>
+                )}
+              </div>
+
+              {product.minStock > 0 && product.quantity < product.minStock && (
+                <div className="text-xs text-red-600 flex items-center gap-1 mb-2">
+                  <AlertTriangle className="w-3 h-3" />
+                  Low Stock (Min: {product.minStock})
+                </div>
+              )}
+
+              {!adminLoading && isAdmin && (
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => onStockAdjust(product)}
+                    className="flex-1 bg-purple-600 text-white px-3 py-2 rounded hover:bg-purple-700 flex items-center justify-center gap-2 text-sm min-h-[44px]"
+                  >
+                    <TrendingUp className="w-4 h-4" />
+                    Stock
+                  </button>
+                  <button
+                    onClick={() => onEditProduct(product)}
+                    className="flex-1 bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700 flex items-center justify-center gap-2 text-sm min-h-[44px]"
+                  >
+                    <Edit2 className="w-4 h-4" />
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (confirm('Are you sure you want to delete this product?')) {
+                        onDeleteProduct(product.id);
+                      }
+                    }}
+                    className="bg-red-600 text-white px-3 py-2 rounded hover:bg-red-700 flex items-center justify-center min-h-[44px]"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Desktop Table View */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full min-w-[800px]">
           <thead className="bg-gray-50">
             <tr>

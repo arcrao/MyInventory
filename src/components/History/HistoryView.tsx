@@ -211,7 +211,90 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
           </div>
         )}
 
-        <div className="overflow-x-auto">
+        {/* Mobile Card View */}
+        <div className="block md:hidden divide-y">
+          {history.map((entry) => (
+            <div key={entry.id} className="p-4">
+              <div className="flex items-start gap-3 mb-3">
+                <div className="flex-shrink-0 mt-1">
+                  {getActionIcon(entry.action)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-base mb-1">
+                    <span className={entry.productId === null ? 'text-gray-500 italic' : 'text-gray-900'}>
+                      {entry.productName || getProductName(products, entry.productId)}
+                    </span>
+                  </div>
+                  <div className="text-xs text-gray-500 mb-2">
+                    {formatTimestamp(entry.timestamp)}
+                  </div>
+                </div>
+                <div className="flex-shrink-0">
+                  {canShowQRCode(entry.action) && (
+                    <button
+                      onClick={() => setSelectedEntry(entry)}
+                      className="text-blue-600 hover:text-blue-800 p-2 min-h-[44px] min-w-[44px] flex items-center justify-center"
+                      title="Show QR Code"
+                    >
+                      <QrCode className="w-5 h-5" />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                {entry.quantity > 0 && (
+                  <>
+                    <div className="text-gray-500">Quantity:</div>
+                    <div className="text-gray-900 font-medium">
+                      {entry.quantity}{' '}
+                      {entry.unitOfMeasure ||
+                       (entry.productId
+                         ? products.find(p => p.id === entry.productId)?.unitOfMeasure
+                         : undefined) ||
+                       'pcs'
+                      }
+                    </div>
+                  </>
+                )}
+                <div className="text-gray-500">Date:</div>
+                <div className="text-gray-900">{formatDate(entry)}</div>
+                {entry.contactPerson && (
+                  <>
+                    <div className="text-gray-500">
+                      {entry.action === 'stock_in' ? 'Received By:' : 'Issued To:'}
+                    </div>
+                    <div className="text-gray-900">{entry.contactPerson}</div>
+                  </>
+                )}
+                {entry.pricePerUnit && (
+                  <>
+                    <div className="text-gray-500">Price/Unit:</div>
+                    <div className="text-gray-900">₹{entry.pricePerUnit.toFixed(2)}</div>
+                  </>
+                )}
+                {entry.pricePerUnit && entry.quantity > 0 && (
+                  <>
+                    <div className="text-gray-500">Total:</div>
+                    <div className="text-gray-900 font-medium">
+                      ₹{(entry.pricePerUnit * entry.quantity).toFixed(2)}
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {entry.notes && entry.notes !== '-' && (
+                <div className="mt-3 pt-3 border-t">
+                  <div className="text-xs text-gray-500 mb-1">Notes:</div>
+                  <div className="text-sm text-gray-700">{entry.notes}</div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Desktop Table View */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50">
               <tr>
