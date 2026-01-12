@@ -10,6 +10,11 @@
 -- - Row-level locking (prevents race conditions)
 -- - Server-side validation (can enforce business rules)
 --
+-- Security:
+-- - Functions use SECURITY DEFINER (bypass RLS for transaction control)
+-- - Manual is_admin() checks enforce admin-only access
+-- - This maintains your security model: only admins can modify stock
+--
 -- Run this in Supabase SQL Editor
 -- ========================================
 
@@ -32,6 +37,11 @@ DECLARE
   v_unit_of_measure TEXT;
   v_new_quantity INTEGER;
 BEGIN
+  -- SECURITY CHECK: Enforce admin-only access (RLS is bypassed with SECURITY DEFINER)
+  IF NOT is_admin() THEN
+    RAISE EXCEPTION 'Only administrators can perform stock operations';
+  END IF;
+
   -- Validate quantity is positive
   IF p_quantity <= 0 THEN
     RAISE EXCEPTION 'Quantity must be greater than zero';
@@ -120,6 +130,11 @@ DECLARE
   v_current_quantity INTEGER;
   v_new_quantity INTEGER;
 BEGIN
+  -- SECURITY CHECK: Enforce admin-only access (RLS is bypassed with SECURITY DEFINER)
+  IF NOT is_admin() THEN
+    RAISE EXCEPTION 'Only administrators can perform stock operations';
+  END IF;
+
   -- Validate quantity is positive
   IF p_quantity <= 0 THEN
     RAISE EXCEPTION 'Quantity must be greater than zero';
