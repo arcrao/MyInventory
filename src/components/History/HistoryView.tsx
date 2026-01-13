@@ -107,13 +107,13 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
 
   const formatDate = (entry: HistoryEntry) => {
     if (entry.date) {
-      return new Date(entry.date).toLocaleDateString();
+      return new Date(entry.date).toLocaleDateString('en-IN');
     }
-    return new Date(entry.timestamp).toLocaleDateString();
+    return new Date(entry.timestamp).toLocaleDateString('en-IN');
   };
 
   const formatTimestamp = (timestamp: string) => {
-    return new Date(timestamp).toLocaleString();
+    return new Date(timestamp).toLocaleString('en-IN');
   };
 
   const canShowQRCode = (action: string) => {
