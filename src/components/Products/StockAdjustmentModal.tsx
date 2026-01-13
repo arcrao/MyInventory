@@ -28,9 +28,35 @@ export const StockAdjustmentModal: React.FC<StockAdjustmentModalProps> = ({
   const [pricePerUnit, setPricePerUnit] = useState<number>(product.price);
   const [date, setDate] = useState<string>(new Date().toISOString().split('T')[0]);
 
+  // Calculate date limits: max 1 week back, no future dates
+  const getMaxDate = () => new Date().toISOString().split('T')[0];
+  const getMinDate = () => {
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+    return oneWeekAgo.toISOString().split('T')[0];
+  };
+
   const handleSubmit = () => {
     if (quantity <= 0) {
       alert('Please enter a valid quantity');
+      return;
+    }
+
+    // Validate date
+    const selectedDate = new Date(date);
+    const today = new Date();
+    today.setHours(23, 59, 59, 999); // End of today
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+    oneWeekAgo.setHours(0, 0, 0, 0); // Start of day 7 days ago
+
+    if (selectedDate > today) {
+      alert('Future dates are not allowed. Please select today or a past date.');
+      return;
+    }
+
+    if (selectedDate < oneWeekAgo) {
+      alert('Date cannot be more than 1 week in the past. Please select a date within the last 7 days.');
       return;
     }
 
@@ -121,7 +147,9 @@ export const StockAdjustmentModal: React.FC<StockAdjustmentModalProps> = ({
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="w-full border rounded px-3 py-2"
+              min={getMinDate()}
+              max={getMaxDate()}
+              className="w-full border rounded px-3 py-2 min-h-[44px] text-base"
             />
           </div>
         </div>
