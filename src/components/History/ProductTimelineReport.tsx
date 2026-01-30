@@ -49,45 +49,52 @@ export const ProductTimelineReport: React.FC<ProductTimelineReportProps> = ({ pr
   const productSummaries = useMemo((): ProductSummary[] => {
     const summaryMap = new Map<number, ProductSummary>();
 
-    // Initialize with all products
+    // Create a lookup for product details
+    const productLookup = new Map<number, Product>();
     products.forEach(product => {
-      summaryMap.set(product.id, {
-        productId: product.id,
-        productName: product.name,
-        sku: product.sku,
-        unitOfMeasure: product.unitOfMeasure,
-        totalIn: 0,
-        totalOut: 0,
-        currentStock: product.quantity,
-        stockInCount: 0,
-        stockOutCount: 0,
-        totalValueIn: 0
-      });
+      productLookup.set(product.id, product);
     });
 
-    // Aggregate history data (already filtered by date range at database level)
+    // Build summaries from history data (not from products list)
+    // This ensures we capture all products that have activity, even if not in current products page
     historyData.forEach(entry => {
-      if (entry.productId && summaryMap.has(entry.productId)) {
-        const summary = summaryMap.get(entry.productId)!;
+      if (!entry.productId) return;
 
-        if (entry.action === 'stock_in') {
-          summary.totalIn += entry.quantity;
-          summary.stockInCount++;
-          if (entry.pricePerUnit) {
-            summary.totalValueIn += entry.pricePerUnit * entry.quantity;
-          }
-        } else if (entry.action === 'stock_out') {
-          summary.totalOut += entry.quantity;
-          summary.stockOutCount++;
+      // Initialize product summary if not exists
+      if (!summaryMap.has(entry.productId)) {
+        const product = productLookup.get(entry.productId);
+        summaryMap.set(entry.productId, {
+          productId: entry.productId,
+          productName: entry.productName || 'Unknown Product',
+          sku: product?.sku || '-',
+          unitOfMeasure: entry.unitOfMeasure || product?.unitOfMeasure || 'pcs',
+          totalIn: 0,
+          totalOut: 0,
+          currentStock: product?.quantity || 0,
+          stockInCount: 0,
+          stockOutCount: 0,
+          totalValueIn: 0
+        });
+      }
+
+      const summary = summaryMap.get(entry.productId)!;
+
+      if (entry.action === 'stock_in') {
+        summary.totalIn += entry.quantity;
+        summary.stockInCount++;
+        if (entry.pricePerUnit) {
+          summary.totalValueIn += entry.pricePerUnit * entry.quantity;
         }
+      } else if (entry.action === 'stock_out') {
+        summary.totalOut += entry.quantity;
+        summary.stockOutCount++;
       }
     });
 
     // Convert to array and sort by product name
     return Array.from(summaryMap.values())
-      .filter(s => s.totalIn > 0 || s.totalOut > 0 || dateRange === 'all')
       .sort((a, b) => a.productName.localeCompare(b.productName));
-  }, [products, historyData, dateRange]);
+  }, [products, historyData]);
 
   // Calculate totals
   const totals = useMemo(() => {
