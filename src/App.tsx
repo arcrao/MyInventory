@@ -226,7 +226,7 @@ const AuthenticatedApp: React.FC<{ user: any }> = ({ user }) => {
                 onPageChange={goToHistoryPage}
               />
             ) : (
-              <ProductTimelineReport products={products} />
+              <ProductTimelineReport />
             )}
           </div>
         )}

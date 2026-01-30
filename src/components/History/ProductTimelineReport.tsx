@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Download, TrendingUp, TrendingDown, Package } from 'lucide-react';
-import { Product, HistoryEntry, HistoryDateRangeFilter, HistoryActionFilter } from '../../types';
+import { HistoryEntry, HistoryDateRangeFilter, HistoryActionFilter } from '../../types';
 import { StorageService } from '../../services/storage.service';
 
 interface ProductTimelineReportProps {
-  products: Product[];
+  // No props needed - fetches all data internally
 }
 
 interface ProductSummary {
@@ -20,57 +20,60 @@ interface ProductSummary {
   totalValueIn: number;
 }
 
-export const ProductTimelineReport: React.FC<ProductTimelineReportProps> = ({ products }) => {
+export const ProductTimelineReport: React.FC<ProductTimelineReportProps> = () => {
   const [dateRange, setDateRange] = useState<HistoryDateRangeFilter>('all');
   const [actionFilter, setActionFilter] = useState<HistoryActionFilter>('all');
   const [historyData, setHistoryData] = useState<HistoryEntry[]>([]);
+  const [productStockMap, setProductStockMap] = useState<Map<number, { quantity: number; sku: string; unitOfMeasure: string }>>(new Map());
   const [loading, setLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
 
   // Load history when filters change - filtering is done at database level
   useEffect(() => {
-    const loadHistory = async () => {
+    const loadData = async () => {
       setLoading(true);
       try {
+        // Fetch history data
         const data = await StorageService.getAllHistory(dateRange, actionFilter);
         setHistoryData(data);
+
+        // Get unique product IDs from history
+        const productIds = [...new Set(data.map(entry => entry.productId).filter((id): id is number => id !== null))];
+
+        // Fetch current stock for these products
+        const stockMap = await StorageService.getProductsByIds(productIds);
+        setProductStockMap(stockMap);
       } catch (error) {
         console.error('Error loading history:', error);
         setHistoryData([]);
+        setProductStockMap(new Map());
       } finally {
         setLoading(false);
       }
     };
 
-    loadHistory();
+    loadData();
   }, [dateRange, actionFilter]);
 
   // Calculate summary for each product
   const productSummaries = useMemo((): ProductSummary[] => {
     const summaryMap = new Map<number, ProductSummary>();
 
-    // Create a lookup for product details
-    const productLookup = new Map<number, Product>();
-    products.forEach(product => {
-      productLookup.set(product.id, product);
-    });
-
-    // Build summaries from history data (not from products list)
-    // This ensures we capture all products that have activity, even if not in current products page
+    // Build summaries from history data
     historyData.forEach(entry => {
       if (!entry.productId) return;
 
       // Initialize product summary if not exists
       if (!summaryMap.has(entry.productId)) {
-        const product = productLookup.get(entry.productId);
+        const productInfo = productStockMap.get(entry.productId);
         summaryMap.set(entry.productId, {
           productId: entry.productId,
           productName: entry.productName || 'Unknown Product',
-          sku: product?.sku || '-',
-          unitOfMeasure: entry.unitOfMeasure || product?.unitOfMeasure || 'pcs',
+          sku: productInfo?.sku || '-',
+          unitOfMeasure: entry.unitOfMeasure || productInfo?.unitOfMeasure || 'pcs',
           totalIn: 0,
           totalOut: 0,
-          currentStock: product?.quantity || 0,
+          currentStock: productInfo?.quantity || 0,
           stockInCount: 0,
           stockOutCount: 0,
           totalValueIn: 0
@@ -94,7 +97,7 @@ export const ProductTimelineReport: React.FC<ProductTimelineReportProps> = ({ pr
     // Convert to array and sort by product name
     return Array.from(summaryMap.values())
       .sort((a, b) => a.productName.localeCompare(b.productName));
-  }, [products, historyData]);
+  }, [historyData, productStockMap]);
 
   // Calculate totals
   const totals = useMemo(() => {

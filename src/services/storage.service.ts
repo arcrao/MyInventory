@@ -73,6 +73,34 @@ export class StorageService {
     }
   }
 
+  // Get products by IDs - for fetching current stock in reports
+  static async getProductsByIds(productIds: number[]): Promise<Map<number, { quantity: number; sku: string; unitOfMeasure: string }>> {
+    try {
+      if (productIds.length === 0) return new Map();
+
+      const { data, error } = await supabase
+        .from('products')
+        .select('id, quantity, sku, unit_of_measure')
+        .in('id', productIds);
+
+      if (error) throw error;
+
+      const result = new Map<number, { quantity: number; sku: string; unitOfMeasure: string }>();
+      (data || []).forEach(item => {
+        result.set(item.id, {
+          quantity: item.quantity,
+          sku: item.sku,
+          unitOfMeasure: item.unit_of_measure
+        });
+      });
+
+      return result;
+    } catch (error) {
+      console.error('Error getting products by IDs:', error);
+      return new Map();
+    }
+  }
+
   // Products
   static async getProducts(page?: number, pageSize: number = 50, categoryId?: string, searchTerm?: string): Promise<Product[]> {
     try {
