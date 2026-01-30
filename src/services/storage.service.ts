@@ -602,19 +602,39 @@ export class StorageService {
     }
   }
 
-  // Get ALL history entries (no pagination) - for CSV export
+  // Get ALL history entries (no pagination) - for CSV export and reports
+  // Uses pagination internally to fetch all records (Supabase default limit is 1000)
   static async getAllHistory(): Promise<HistoryEntry[]> {
     try {
-      console.log('[StorageService] Fetching ALL history entries for export');
-      const { data, error } = await supabase
-        .from('history')
-        .select('*, products(name)')
-        .order('created_at', { ascending: false });
+      console.log('[StorageService] Fetching ALL history entries');
+      const allData: any[] = [];
+      const pageSize = 1000;
+      let page = 0;
+      let hasMore = true;
 
-      if (error) throw error;
+      while (hasMore) {
+        const from = page * pageSize;
+        const to = from + pageSize - 1;
 
-      console.log('[StorageService] Fetched all history:', data?.length || 0, 'items');
-      return (data || []).map(item => ({
+        const { data, error } = await supabase
+          .from('history')
+          .select('*, products(name)')
+          .order('created_at', { ascending: false })
+          .range(from, to);
+
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+          allData.push(...data);
+          hasMore = data.length === pageSize;
+          page++;
+        } else {
+          hasMore = false;
+        }
+      }
+
+      console.log('[StorageService] Fetched all history:', allData.length, 'items');
+      return allData.map(item => ({
         id: item.id,
         productId: item.product_id,
         productName: item.product_name || item.products?.name,

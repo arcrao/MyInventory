@@ -297,6 +297,8 @@ export const ProductTimelineReport: React.FC<ProductTimelineReportProps> = ({ pr
               <div className="px-4 py-2 bg-gray-50 border-b text-sm text-gray-600">
                 Showing {productSummaries.length} products
                 {dateRange !== 'all' && ` with activity in ${getDateRangeLabel(dateRange).toLowerCase()}`}
+                {' '}| {allHistory.length} total history records loaded
+                {dateRange !== 'all' && `, ${filteredHistory.length} in selected period`}
               </div>
             )}
 
