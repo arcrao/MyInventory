@@ -636,7 +636,10 @@ export class StorageService {
         }
 
         // Apply action filter at database level
-        if (actionFilter !== 'all') {
+        // For timeline reports, only fetch stock_in and stock_out actions
+        if (actionFilter === 'all') {
+          query = query.in('action', ['stock_in', 'stock_out']);
+        } else {
           query = query.eq('action', actionFilter);
         }
 
