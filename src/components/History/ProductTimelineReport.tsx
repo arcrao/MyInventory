@@ -58,11 +58,6 @@ export const ProductTimelineReport: React.FC<ProductTimelineReportProps> = ({ pr
         startDate = today;
         endDate = new Date(today.getTime() + 24 * 60 * 60 * 1000 - 1);
         break;
-      case 'yesterday':
-        startDate = new Date(today);
-        startDate.setDate(startDate.getDate() - 1);
-        endDate = new Date(startDate.getTime() + 24 * 60 * 60 * 1000 - 1);
-        break;
       case 'weekly':
         startDate = new Date(today);
         startDate.setDate(startDate.getDate() - 7);
@@ -149,7 +144,6 @@ export const ProductTimelineReport: React.FC<ProductTimelineReportProps> = ({ pr
     switch (range) {
       case 'all': return 'All Time';
       case 'today': return 'Today';
-      case 'yesterday': return 'Yesterday';
       case 'weekly': return 'Last 7 Days';
       case 'current_month': return 'Current Month';
       case 'previous_month': return 'Previous Month';
@@ -249,7 +243,6 @@ export const ProductTimelineReport: React.FC<ProductTimelineReportProps> = ({ pr
           >
             <option value="all">All Time</option>
             <option value="today">Today</option>
-            <option value="yesterday">Yesterday</option>
             <option value="weekly">Last 7 Days</option>
             <option value="current_month">Current Month</option>
             <option value="previous_month">Previous Month</option>
