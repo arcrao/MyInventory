@@ -12,6 +12,7 @@ interface ProductSummary {
   productName: string;
   sku: string;
   unitOfMeasure: string;
+  openingStock: number;
   totalIn: number;
   totalOut: number;
   currentStock: number;
@@ -83,17 +84,44 @@ export const ProductTimelineReport: React.FC<ProductTimelineReportProps> = ({ pr
     });
   }, [allHistory, dateRange]);
 
+  // Calculate all-time totals for opening stock calculation
+  const allTimeTotals = useMemo(() => {
+    const totalsMap = new Map<number, { totalIn: number; totalOut: number }>();
+
+    products.forEach(product => {
+      totalsMap.set(product.id, { totalIn: 0, totalOut: 0 });
+    });
+
+    allHistory.forEach(entry => {
+      if (entry.productId && totalsMap.has(entry.productId)) {
+        const totals = totalsMap.get(entry.productId)!;
+        if (entry.action === 'stock_in') {
+          totals.totalIn += entry.quantity;
+        } else if (entry.action === 'stock_out') {
+          totals.totalOut += entry.quantity;
+        }
+      }
+    });
+
+    return totalsMap;
+  }, [products, allHistory]);
+
   // Calculate summary for each product
   const productSummaries = useMemo((): ProductSummary[] => {
     const summaryMap = new Map<number, ProductSummary>();
 
     // Initialize with all products
     products.forEach(product => {
+      const allTimeTotalsForProduct = allTimeTotals.get(product.id) || { totalIn: 0, totalOut: 0 };
+      // Opening stock = Current stock - (all-time stock in - all-time stock out)
+      const openingStock = product.quantity - (allTimeTotalsForProduct.totalIn - allTimeTotalsForProduct.totalOut);
+
       summaryMap.set(product.id, {
         productId: product.id,
         productName: product.name,
         sku: product.sku,
         unitOfMeasure: product.unitOfMeasure,
+        openingStock: openingStock,
         totalIn: 0,
         totalOut: 0,
         currentStock: product.quantity,
@@ -103,7 +131,7 @@ export const ProductTimelineReport: React.FC<ProductTimelineReportProps> = ({ pr
       });
     });
 
-    // Aggregate history data
+    // Aggregate history data (filtered by date range)
     filteredHistory.forEach(entry => {
       if (entry.productId && summaryMap.has(entry.productId)) {
         const summary = summaryMap.get(entry.productId)!;
@@ -125,18 +153,19 @@ export const ProductTimelineReport: React.FC<ProductTimelineReportProps> = ({ pr
     return Array.from(summaryMap.values())
       .filter(s => s.totalIn > 0 || s.totalOut > 0 || dateRange === 'all')
       .sort((a, b) => a.productName.localeCompare(b.productName));
-  }, [products, filteredHistory, dateRange]);
+  }, [products, filteredHistory, dateRange, allTimeTotals]);
 
   // Calculate totals
   const totals = useMemo(() => {
     return productSummaries.reduce(
       (acc, summary) => ({
+        openingStock: acc.openingStock + summary.openingStock,
         totalIn: acc.totalIn + summary.totalIn,
         totalOut: acc.totalOut + summary.totalOut,
         totalValueIn: acc.totalValueIn + summary.totalValueIn,
         currentStock: acc.currentStock + summary.currentStock
       }),
-      { totalIn: 0, totalOut: 0, totalValueIn: 0, currentStock: 0 }
+      { openingStock: 0, totalIn: 0, totalOut: 0, totalValueIn: 0, currentStock: 0 }
     );
   }, [productSummaries]);
 
@@ -161,9 +190,9 @@ export const ProductTimelineReport: React.FC<ProductTimelineReportProps> = ({ pr
         'Product Name',
         'SKU',
         'Unit',
+        'Opening Stock',
         'Total Stock In',
         'Total Stock Out',
-        'Net Change',
         'Current Stock',
         'Value In (₹)'
       ];
@@ -172,9 +201,9 @@ export const ProductTimelineReport: React.FC<ProductTimelineReportProps> = ({ pr
         summary.productName,
         summary.sku,
         summary.unitOfMeasure,
+        summary.openingStock.toString(),
         summary.totalIn.toString(),
         summary.totalOut.toString(),
-        (summary.totalIn - summary.totalOut).toString(),
         summary.currentStock.toString(),
         summary.totalValueIn > 0 ? summary.totalValueIn.toFixed(2) : ''
       ]);
@@ -184,9 +213,9 @@ export const ProductTimelineReport: React.FC<ProductTimelineReportProps> = ({ pr
         'TOTAL',
         '',
         '',
+        totals.openingStock.toString(),
         totals.totalIn.toString(),
         totals.totalOut.toString(),
-        (totals.totalIn - totals.totalOut).toString(),
         totals.currentStock.toString(),
         totals.totalValueIn > 0 ? totals.totalValueIn.toFixed(2) : ''
       ]);
@@ -320,7 +349,11 @@ export const ProductTimelineReport: React.FC<ProductTimelineReportProps> = ({ pr
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-2 text-center">
+                  <div className="grid grid-cols-4 gap-2 text-center">
+                    <div className="bg-gray-50 rounded p-2">
+                      <div className="text-gray-700 font-semibold">{summary.openingStock}</div>
+                      <div className="text-xs text-gray-600">Opening</div>
+                    </div>
                     <div className="bg-green-50 rounded p-2">
                       <div className="text-green-600 font-semibold">+{summary.totalIn}</div>
                       <div className="text-xs text-gray-600">In</div>
@@ -330,10 +363,8 @@ export const ProductTimelineReport: React.FC<ProductTimelineReportProps> = ({ pr
                       <div className="text-xs text-gray-600">Out</div>
                     </div>
                     <div className="bg-blue-50 rounded p-2">
-                      <div className={`font-semibold ${summary.totalIn - summary.totalOut >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        {summary.totalIn - summary.totalOut >= 0 ? '+' : ''}{summary.totalIn - summary.totalOut}
-                      </div>
-                      <div className="text-xs text-gray-600">Net</div>
+                      <div className="text-blue-600 font-semibold">{summary.currentStock}</div>
+                      <div className="text-xs text-gray-600">Current</div>
                     </div>
                   </div>
 
@@ -353,9 +384,9 @@ export const ProductTimelineReport: React.FC<ProductTimelineReportProps> = ({ pr
                   <tr>
                     <th className="px-4 py-3 text-left text-sm font-medium">Product</th>
                     <th className="px-4 py-3 text-left text-sm font-medium">SKU</th>
+                    <th className="px-4 py-3 text-right text-sm font-medium text-gray-600">Opening Stock</th>
                     <th className="px-4 py-3 text-right text-sm font-medium text-green-600">Stock In</th>
                     <th className="px-4 py-3 text-right text-sm font-medium text-red-600">Stock Out</th>
-                    <th className="px-4 py-3 text-right text-sm font-medium">Net Change</th>
                     <th className="px-4 py-3 text-right text-sm font-medium text-blue-600">Current Stock</th>
                     <th className="px-4 py-3 text-right text-sm font-medium">Value In</th>
                   </tr>
@@ -365,6 +396,9 @@ export const ProductTimelineReport: React.FC<ProductTimelineReportProps> = ({ pr
                     <tr key={summary.productId} className="hover:bg-gray-50">
                       <td className="px-4 py-3 text-sm font-medium">{summary.productName}</td>
                       <td className="px-4 py-3 text-sm text-gray-500">{summary.sku}</td>
+                      <td className="px-4 py-3 text-right text-sm text-gray-600 font-medium">
+                        {summary.openingStock} {summary.unitOfMeasure}
+                      </td>
                       <td className="px-4 py-3 text-right text-sm text-green-600 font-medium">
                         +{summary.totalIn} {summary.unitOfMeasure}
                         {summary.stockInCount > 0 && (
@@ -376,12 +410,6 @@ export const ProductTimelineReport: React.FC<ProductTimelineReportProps> = ({ pr
                         {summary.stockOutCount > 0 && (
                           <span className="text-xs text-gray-400 ml-1">({summary.stockOutCount})</span>
                         )}
-                      </td>
-                      <td className={`px-4 py-3 text-right text-sm font-medium ${
-                        summary.totalIn - summary.totalOut >= 0 ? 'text-green-600' : 'text-red-600'
-                      }`}>
-                        {summary.totalIn - summary.totalOut >= 0 ? '+' : ''}
-                        {summary.totalIn - summary.totalOut} {summary.unitOfMeasure}
                       </td>
                       <td className="px-4 py-3 text-right text-sm font-bold text-blue-600">
                         {summary.currentStock} {summary.unitOfMeasure}
@@ -395,13 +423,9 @@ export const ProductTimelineReport: React.FC<ProductTimelineReportProps> = ({ pr
                 <tfoot className="bg-gray-100 font-semibold">
                   <tr>
                     <td className="px-4 py-3 text-sm" colSpan={2}>TOTAL</td>
+                    <td className="px-4 py-3 text-right text-sm text-gray-600">{totals.openingStock}</td>
                     <td className="px-4 py-3 text-right text-sm text-green-600">+{totals.totalIn}</td>
                     <td className="px-4 py-3 text-right text-sm text-red-600">-{totals.totalOut}</td>
-                    <td className={`px-4 py-3 text-right text-sm ${
-                      totals.totalIn - totals.totalOut >= 0 ? 'text-green-600' : 'text-red-600'
-                    }`}>
-                      {totals.totalIn - totals.totalOut >= 0 ? '+' : ''}{totals.totalIn - totals.totalOut}
-                    </td>
                     <td className="px-4 py-3 text-right text-sm text-blue-600">{totals.currentStock}</td>
                     <td className="px-4 py-3 text-right text-sm">
                       {totals.totalValueIn > 0 ? `₹${totals.totalValueIn.toLocaleString()}` : '-'}
