@@ -604,10 +604,13 @@ export class StorageService {
 
   // Get ALL history entries (no pagination) - for CSV export and reports
   // Uses pagination internally to fetch all records (Supabase default limit is 1000)
-  // Optionally filter by date range at database level for better performance
-  static async getAllHistory(dateRangeFilter: HistoryDateRangeFilter = 'all'): Promise<HistoryEntry[]> {
+  // Optionally filter by date range and action at database level for better performance
+  static async getAllHistory(
+    dateRangeFilter: HistoryDateRangeFilter = 'all',
+    actionFilter: HistoryActionFilter = 'all'
+  ): Promise<HistoryEntry[]> {
     try {
-      console.log('[StorageService] Fetching ALL history entries, dateRange:', dateRangeFilter);
+      console.log('[StorageService] Fetching ALL history entries, dateRange:', dateRangeFilter, 'action:', actionFilter);
       const allData: any[] = [];
       const pageSize = 1000;
       let page = 0;
@@ -630,6 +633,11 @@ export class StorageService {
           query = query
             .gte('created_at', dateRange.start.toISOString())
             .lte('created_at', dateRange.end.toISOString());
+        }
+
+        // Apply action filter at database level
+        if (actionFilter !== 'all') {
+          query = query.eq('action', actionFilter);
         }
 
         const { data, error } = await query.range(from, to);

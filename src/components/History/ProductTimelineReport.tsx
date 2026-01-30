@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Download, TrendingUp, TrendingDown, Package } from 'lucide-react';
-import { Product, HistoryEntry, HistoryDateRangeFilter } from '../../types';
+import { Product, HistoryEntry, HistoryDateRangeFilter, HistoryActionFilter } from '../../types';
 import { StorageService } from '../../services/storage.service';
 
 interface ProductTimelineReportProps {
@@ -22,16 +22,17 @@ interface ProductSummary {
 
 export const ProductTimelineReport: React.FC<ProductTimelineReportProps> = ({ products }) => {
   const [dateRange, setDateRange] = useState<HistoryDateRangeFilter>('all');
+  const [actionFilter, setActionFilter] = useState<HistoryActionFilter>('all');
   const [historyData, setHistoryData] = useState<HistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
 
-  // Load history when dateRange changes - filtering is done at database level
+  // Load history when filters change - filtering is done at database level
   useEffect(() => {
     const loadHistory = async () => {
       setLoading(true);
       try {
-        const data = await StorageService.getAllHistory(dateRange);
+        const data = await StorageService.getAllHistory(dateRange, actionFilter);
         setHistoryData(data);
       } catch (error) {
         console.error('Error loading history:', error);
@@ -42,7 +43,7 @@ export const ProductTimelineReport: React.FC<ProductTimelineReportProps> = ({ pr
     };
 
     loadHistory();
-  }, [dateRange]);
+  }, [dateRange, actionFilter]);
 
   // Calculate summary for each product
   const productSummaries = useMemo((): ProductSummary[] => {
@@ -205,6 +206,17 @@ export const ProductTimelineReport: React.FC<ProductTimelineReportProps> = ({ pr
             <option value="current_month">Current Month</option>
             <option value="previous_month">Previous Month</option>
             <option value="3_months">Last 3 Months</option>
+          </select>
+
+          <label className="text-sm font-medium text-gray-700">Action:</label>
+          <select
+            value={actionFilter}
+            onChange={(e) => setActionFilter(e.target.value as HistoryActionFilter)}
+            className="px-3 sm:px-4 py-2 border rounded bg-white text-sm min-h-[44px]"
+          >
+            <option value="all">All Actions</option>
+            <option value="stock_in">Stock In</option>
+            <option value="stock_out">Stock Out</option>
           </select>
         </div>
       </div>
