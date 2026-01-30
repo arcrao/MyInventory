@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Search, Download, Plus, Minus, Edit, Trash, Package, TrendingUp, TrendingDown, Calendar } from 'lucide-react';
+import { Download, TrendingUp, TrendingDown, Package } from 'lucide-react';
 import { Product, HistoryEntry, HistoryDateRangeFilter } from '../../types';
 import { StorageService } from '../../services/storage.service';
 
@@ -7,54 +7,46 @@ interface ProductTimelineReportProps {
   products: Product[];
 }
 
-interface TimelineEntry extends HistoryEntry {
-  runningBalance: number;
+interface ProductSummary {
+  productId: number;
+  productName: string;
+  sku: string;
+  unitOfMeasure: string;
+  totalIn: number;
+  totalOut: number;
+  currentStock: number;
+  stockInCount: number;
+  stockOutCount: number;
+  totalValueIn: number;
 }
 
 export const ProductTimelineReport: React.FC<ProductTimelineReportProps> = ({ products }) => {
-  const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
   const [dateRange, setDateRange] = useState<HistoryDateRangeFilter>('all');
-  const [timeline, setTimeline] = useState<HistoryEntry[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [allHistory, setAllHistory] = useState<HistoryEntry[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
 
-  // Filter products based on search term
-  const filteredProducts = useMemo(() => {
-    if (!searchTerm.trim()) return products;
-    const search = searchTerm.toLowerCase();
-    return products.filter(p =>
-      p.name.toLowerCase().includes(search) ||
-      p.sku.toLowerCase().includes(search)
-    );
-  }, [products, searchTerm]);
-
-  // Load timeline when product or date range changes
+  // Load all history on mount
   useEffect(() => {
-    const loadTimeline = async () => {
-      if (!selectedProductId) {
-        setTimeline([]);
-        return;
-      }
-
+    const loadHistory = async () => {
       setLoading(true);
       try {
-        const data = await StorageService.getHistoryByProduct(selectedProductId);
-        setTimeline(data);
+        const data = await StorageService.getAllHistory();
+        setAllHistory(data);
       } catch (error) {
-        console.error('Error loading product timeline:', error);
-        setTimeline([]);
+        console.error('Error loading history:', error);
+        setAllHistory([]);
       } finally {
         setLoading(false);
       }
     };
 
-    loadTimeline();
-  }, [selectedProductId]);
+    loadHistory();
+  }, []);
 
-  // Filter timeline by date range
-  const filteredTimeline = useMemo(() => {
-    if (dateRange === 'all') return timeline;
+  // Filter history by date range
+  const filteredHistory = useMemo(() => {
+    if (dateRange === 'all') return allHistory;
 
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -87,155 +79,129 @@ export const ProductTimelineReport: React.FC<ProductTimelineReportProps> = ({ pr
         startDate.setMonth(startDate.getMonth() - 3);
         break;
       default:
-        return timeline;
+        return allHistory;
     }
 
-    return timeline.filter(entry => {
+    return allHistory.filter(entry => {
       const entryDate = new Date(entry.timestamp);
       return entryDate >= startDate && entryDate <= endDate;
     });
-  }, [timeline, dateRange]);
+  }, [allHistory, dateRange]);
 
-  // Calculate running balance for each entry
-  const timelineWithBalance = useMemo((): TimelineEntry[] => {
-    const selectedProduct = products.find(p => p.id === selectedProductId);
-    if (!selectedProduct || filteredTimeline.length === 0) return [];
+  // Calculate summary for each product
+  const productSummaries = useMemo((): ProductSummary[] => {
+    const summaryMap = new Map<number, ProductSummary>();
 
-    // Start from the current quantity and work backwards
-    let currentBalance = selectedProduct.quantity;
-
-    // First, calculate what the balance was before the filtered period
-    // by subtracting/adding quantities from the filtered entries
-    const sortedTimeline = [...filteredTimeline].sort(
-      (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-    );
-
-    // Calculate balances going backwards in time
-    const withBalances: TimelineEntry[] = [];
-    let runningBalance = currentBalance;
-
-    for (const entry of sortedTimeline) {
-      withBalances.push({
-        ...entry,
-        runningBalance: runningBalance
+    // Initialize with all products
+    products.forEach(product => {
+      summaryMap.set(product.id, {
+        productId: product.id,
+        productName: product.name,
+        sku: product.sku,
+        unitOfMeasure: product.unitOfMeasure,
+        totalIn: 0,
+        totalOut: 0,
+        currentStock: product.quantity,
+        stockInCount: 0,
+        stockOutCount: 0,
+        totalValueIn: 0
       });
+    });
 
-      // Adjust running balance for the next (older) entry
-      if (entry.action === 'stock_in') {
-        runningBalance -= entry.quantity;
-      } else if (entry.action === 'stock_out') {
-        runningBalance += entry.quantity;
-      } else if (entry.action === 'created') {
-        // For created, the balance before was 0
-        runningBalance = 0;
+    // Aggregate history data
+    filteredHistory.forEach(entry => {
+      if (entry.productId && summaryMap.has(entry.productId)) {
+        const summary = summaryMap.get(entry.productId)!;
+
+        if (entry.action === 'stock_in') {
+          summary.totalIn += entry.quantity;
+          summary.stockInCount++;
+          if (entry.pricePerUnit) {
+            summary.totalValueIn += entry.pricePerUnit * entry.quantity;
+          }
+        } else if (entry.action === 'stock_out') {
+          summary.totalOut += entry.quantity;
+          summary.stockOutCount++;
+        }
       }
-    }
+    });
 
-    return withBalances;
-  }, [filteredTimeline, products, selectedProductId]);
+    // Convert to array and sort by product name
+    return Array.from(summaryMap.values())
+      .filter(s => s.totalIn > 0 || s.totalOut > 0 || dateRange === 'all')
+      .sort((a, b) => a.productName.localeCompare(b.productName));
+  }, [products, filteredHistory, dateRange]);
 
-  // Calculate summary stats
-  const summaryStats = useMemo(() => {
-    const stockInEntries = filteredTimeline.filter(e => e.action === 'stock_in');
-    const stockOutEntries = filteredTimeline.filter(e => e.action === 'stock_out');
-
-    const totalIn = stockInEntries.reduce((sum, e) => sum + e.quantity, 0);
-    const totalOut = stockOutEntries.reduce((sum, e) => sum + e.quantity, 0);
-    const totalValue = stockInEntries.reduce((sum, e) =>
-      sum + (e.pricePerUnit ? e.pricePerUnit * e.quantity : 0), 0
+  // Calculate totals
+  const totals = useMemo(() => {
+    return productSummaries.reduce(
+      (acc, summary) => ({
+        totalIn: acc.totalIn + summary.totalIn,
+        totalOut: acc.totalOut + summary.totalOut,
+        totalValueIn: acc.totalValueIn + summary.totalValueIn,
+        currentStock: acc.currentStock + summary.currentStock
+      }),
+      { totalIn: 0, totalOut: 0, totalValueIn: 0, currentStock: 0 }
     );
+  }, [productSummaries]);
 
-    return {
-      totalIn,
-      totalOut,
-      netChange: totalIn - totalOut,
-      stockInCount: stockInEntries.length,
-      stockOutCount: stockOutEntries.length,
-      totalValue
-    };
-  }, [filteredTimeline]);
-
-  const getActionIcon = (action: string) => {
-    switch (action) {
-      case 'stock_in':
-        return <Plus className="w-5 h-5 text-green-600" />;
-      case 'stock_out':
-        return <Minus className="w-5 h-5 text-red-600" />;
-      case 'created':
-        return <Package className="w-5 h-5 text-blue-600" />;
-      case 'updated':
-        return <Edit className="w-5 h-5 text-yellow-600" />;
-      case 'deleted':
-        return <Trash className="w-5 h-5 text-gray-600" />;
-      default:
-        return <div className="w-5 h-5" />;
+  const getDateRangeLabel = (range: HistoryDateRangeFilter): string => {
+    switch (range) {
+      case 'all': return 'All Time';
+      case 'today': return 'Today';
+      case 'yesterday': return 'Yesterday';
+      case 'weekly': return 'Last 7 Days';
+      case 'current_month': return 'Current Month';
+      case 'previous_month': return 'Previous Month';
+      case '3_months': return 'Last 3 Months';
+      default: return range;
     }
   };
-
-  const getActionLabel = (action: string) => {
-    switch (action) {
-      case 'stock_in': return 'Stock In';
-      case 'stock_out': return 'Stock Out';
-      case 'created': return 'Created';
-      case 'updated': return 'Updated';
-      case 'deleted': return 'Deleted';
-      default: return action;
-    }
-  };
-
-  const formatDate = (entry: HistoryEntry) => {
-    if (entry.date) {
-      return new Date(entry.date).toLocaleDateString();
-    }
-    return new Date(entry.timestamp).toLocaleDateString();
-  };
-
-  const formatTimestamp = (timestamp: string) => {
-    return new Date(timestamp).toLocaleString();
-  };
-
-  const selectedProduct = products.find(p => p.id === selectedProductId);
 
   const handleExport = () => {
-    if (!selectedProduct || timelineWithBalance.length === 0) return;
+    if (productSummaries.length === 0) return;
 
     setIsExporting(true);
     try {
       const headers = [
-        'Date',
-        'Timestamp',
-        'Action',
-        'Quantity',
-        'Running Balance',
-        'Contact Person',
-        'Price/Unit',
-        'Total Value',
-        'Notes'
+        'Product Name',
+        'SKU',
+        'Unit',
+        'Total Stock In',
+        'Total Stock Out',
+        'Net Change',
+        'Current Stock',
+        'Value In (₹)'
       ];
 
-      const rows = timelineWithBalance.map(entry => [
-        formatDate(entry),
-        entry.timestamp,
-        getActionLabel(entry.action),
-        entry.quantity.toString(),
-        entry.runningBalance.toString(),
-        entry.contactPerson || '',
-        entry.pricePerUnit ? entry.pricePerUnit.toFixed(2) : '',
-        entry.pricePerUnit ? (entry.pricePerUnit * entry.quantity).toFixed(2) : '',
-        entry.notes || ''
+      const rows = productSummaries.map(summary => [
+        summary.productName,
+        summary.sku,
+        summary.unitOfMeasure,
+        summary.totalIn.toString(),
+        summary.totalOut.toString(),
+        (summary.totalIn - summary.totalOut).toString(),
+        summary.currentStock.toString(),
+        summary.totalValueIn > 0 ? summary.totalValueIn.toFixed(2) : ''
+      ]);
+
+      // Add totals row
+      rows.push([
+        'TOTAL',
+        '',
+        '',
+        totals.totalIn.toString(),
+        totals.totalOut.toString(),
+        (totals.totalIn - totals.totalOut).toString(),
+        totals.currentStock.toString(),
+        totals.totalValueIn > 0 ? totals.totalValueIn.toFixed(2) : ''
       ]);
 
       const csvContent = [
-        `Product Timeline Report: ${selectedProduct.name}`,
-        `SKU: ${selectedProduct.sku}`,
+        `Product Timeline Report`,
+        `Date Range: ${getDateRangeLabel(dateRange)}`,
         `Generated: ${new Date().toLocaleString()}`,
-        `Date Range: ${dateRange === 'all' ? 'All Time' : dateRange.replace('_', ' ')}`,
-        '',
-        `Summary:`,
-        `Total Stock In: ${summaryStats.totalIn} ${selectedProduct.unitOfMeasure}`,
-        `Total Stock Out: ${summaryStats.totalOut} ${selectedProduct.unitOfMeasure}`,
-        `Net Change: ${summaryStats.netChange >= 0 ? '+' : ''}${summaryStats.netChange} ${selectedProduct.unitOfMeasure}`,
-        `Current Balance: ${selectedProduct.quantity} ${selectedProduct.unitOfMeasure}`,
+        `Products with Activity: ${productSummaries.length}`,
         '',
         headers.join(','),
         ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
@@ -245,11 +211,11 @@ export const ProductTimelineReport: React.FC<ProductTimelineReportProps> = ({ pr
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
-      link.download = `product_timeline_${selectedProduct.sku}_${timestamp}.csv`;
+      link.download = `product_timeline_report_${timestamp}.csv`;
       link.click();
     } catch (error) {
-      console.error('Error exporting timeline:', error);
-      alert('Failed to export timeline. Please try again.');
+      console.error('Error exporting report:', error);
+      alert('Failed to export report. Please try again.');
     } finally {
       setIsExporting(false);
     }
@@ -261,7 +227,7 @@ export const ProductTimelineReport: React.FC<ProductTimelineReportProps> = ({ pr
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-3">
           <h2 className="text-xl sm:text-2xl font-bold">Product Timeline Report</h2>
 
-          {selectedProduct && timelineWithBalance.length > 0 && (
+          {productSummaries.length > 0 && (
             <button
               onClick={handleExport}
               disabled={isExporting}
@@ -273,55 +239,22 @@ export const ProductTimelineReport: React.FC<ProductTimelineReportProps> = ({ pr
           )}
         </div>
 
-        {/* Product Selection and Filters */}
-        <div className="space-y-3">
-          <div className="flex gap-2 flex-wrap">
-            {/* Product Selector */}
-            <div className="relative flex-1 min-w-[250px]">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <input
-                type="text"
-                placeholder="Search products..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-2 border rounded w-full text-sm min-h-[44px]"
-              />
-            </div>
-
-            {/* Date Range Filter */}
-            <select
-              value={dateRange}
-              onChange={(e) => setDateRange(e.target.value as HistoryDateRangeFilter)}
-              className="px-3 sm:px-4 py-2 border rounded bg-white text-sm min-h-[44px]"
-            >
-              <option value="all">All Time</option>
-              <option value="today">Today</option>
-              <option value="yesterday">Yesterday</option>
-              <option value="weekly">Last 7 Days</option>
-              <option value="current_month">Current Month</option>
-              <option value="previous_month">Previous Month</option>
-              <option value="3_months">Last 3 Months</option>
-            </select>
-          </div>
-
-          {/* Product Dropdown */}
-          <div className="bg-white border rounded-lg p-3">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Select a Product
-            </label>
-            <select
-              value={selectedProductId || ''}
-              onChange={(e) => setSelectedProductId(e.target.value ? parseInt(e.target.value) : null)}
-              className="w-full px-3 py-2 border rounded bg-white text-sm min-h-[44px]"
-            >
-              <option value="">-- Select a product --</option>
-              {filteredProducts.map(product => (
-                <option key={product.id} value={product.id}>
-                  {product.name} (SKU: {product.sku}) - Current: {product.quantity} {product.unitOfMeasure}
-                </option>
-              ))}
-            </select>
-          </div>
+        {/* Date Range Filter */}
+        <div className="flex gap-2 flex-wrap items-center">
+          <label className="text-sm font-medium text-gray-700">Time Period:</label>
+          <select
+            value={dateRange}
+            onChange={(e) => setDateRange(e.target.value as HistoryDateRangeFilter)}
+            className="px-3 sm:px-4 py-2 border rounded bg-white text-sm min-h-[44px]"
+          >
+            <option value="all">All Time</option>
+            <option value="today">Today</option>
+            <option value="yesterday">Yesterday</option>
+            <option value="weekly">Last 7 Days</option>
+            <option value="current_month">Current Month</option>
+            <option value="previous_month">Previous Month</option>
+            <option value="3_months">Last 3 Months</option>
+          </select>
         </div>
       </div>
 
@@ -329,143 +262,91 @@ export const ProductTimelineReport: React.FC<ProductTimelineReportProps> = ({ pr
       {loading && (
         <div className="bg-white border rounded-lg p-8 text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-2 text-gray-600">Loading timeline...</p>
+          <p className="mt-2 text-gray-600">Loading report...</p>
         </div>
       )}
 
-      {/* No Product Selected */}
-      {!selectedProductId && !loading && (
-        <div className="bg-white border rounded-lg p-8 text-center text-gray-500">
-          <Calendar className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-          <p>Select a product to view its stock movement timeline</p>
-        </div>
-      )}
-
-      {/* Product Info & Summary */}
-      {selectedProduct && !loading && (
+      {!loading && (
         <>
-          {/* Product Summary Card */}
-          <div className="bg-white border rounded-lg p-4 mb-4">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
-              <div>
-                <h3 className="text-lg font-semibold">{selectedProduct.name}</h3>
-                <p className="text-sm text-gray-500">SKU: {selectedProduct.sku}</p>
+          {/* Summary Cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+            <div className="bg-white border rounded-lg p-4 text-center">
+              <div className="flex items-center justify-center gap-1 text-green-600 mb-1">
+                <TrendingUp className="w-5 h-5" />
+                <span className="text-xl font-bold">{totals.totalIn}</span>
               </div>
-              <div className="text-right">
-                <p className="text-2xl font-bold text-blue-600">
-                  {selectedProduct.quantity} {selectedProduct.unitOfMeasure}
-                </p>
-                <p className="text-sm text-gray-500">Current Stock</p>
-              </div>
+              <p className="text-xs text-gray-600">Total Stock In</p>
             </div>
-
-            {/* Summary Stats */}
-            {filteredTimeline.length > 0 && (
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-4 border-t">
-                <div className="text-center p-2 bg-green-50 rounded">
-                  <div className="flex items-center justify-center gap-1 text-green-600 mb-1">
-                    <TrendingUp className="w-4 h-4" />
-                    <span className="text-lg font-semibold">{summaryStats.totalIn}</span>
-                  </div>
-                  <p className="text-xs text-gray-600">Total In ({summaryStats.stockInCount} entries)</p>
+            <div className="bg-white border rounded-lg p-4 text-center">
+              <div className="flex items-center justify-center gap-1 text-red-600 mb-1">
+                <TrendingDown className="w-5 h-5" />
+                <span className="text-xl font-bold">{totals.totalOut}</span>
+              </div>
+              <p className="text-xs text-gray-600">Total Stock Out</p>
+            </div>
+            <div className="bg-white border rounded-lg p-4 text-center">
+              <div className="flex items-center justify-center gap-1 text-blue-600 mb-1">
+                <Package className="w-5 h-5" />
+                <span className="text-xl font-bold">{totals.currentStock}</span>
+              </div>
+              <p className="text-xs text-gray-600">Current Total Stock</p>
+            </div>
+            {totals.totalValueIn > 0 && (
+              <div className="bg-white border rounded-lg p-4 text-center">
+                <div className="text-xl font-bold text-purple-600 mb-1">
+                  ₹{totals.totalValueIn.toLocaleString()}
                 </div>
-                <div className="text-center p-2 bg-red-50 rounded">
-                  <div className="flex items-center justify-center gap-1 text-red-600 mb-1">
-                    <TrendingDown className="w-4 h-4" />
-                    <span className="text-lg font-semibold">{summaryStats.totalOut}</span>
-                  </div>
-                  <p className="text-xs text-gray-600">Total Out ({summaryStats.stockOutCount} entries)</p>
-                </div>
-                <div className="text-center p-2 bg-blue-50 rounded">
-                  <div className={`text-lg font-semibold mb-1 ${summaryStats.netChange >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {summaryStats.netChange >= 0 ? '+' : ''}{summaryStats.netChange}
-                  </div>
-                  <p className="text-xs text-gray-600">Net Change</p>
-                </div>
-                {summaryStats.totalValue > 0 && (
-                  <div className="text-center p-2 bg-purple-50 rounded">
-                    <div className="text-lg font-semibold text-purple-600 mb-1">
-                      ₹{summaryStats.totalValue.toLocaleString()}
-                    </div>
-                    <p className="text-xs text-gray-600">Total Value In</p>
-                  </div>
-                )}
+                <p className="text-xs text-gray-600">Total Value In</p>
               </div>
             )}
           </div>
 
-          {/* Timeline */}
+          {/* Product Summary Table */}
           <div className="bg-white border rounded-lg overflow-hidden">
-            {timelineWithBalance.length > 0 && (
+            {productSummaries.length > 0 && (
               <div className="px-4 py-2 bg-gray-50 border-b text-sm text-gray-600">
-                Showing {timelineWithBalance.length} entries
+                Showing {productSummaries.length} products
+                {dateRange !== 'all' && ` with activity in ${getDateRangeLabel(dateRange).toLowerCase()}`}
               </div>
             )}
 
             {/* Mobile Card View */}
             <div className="block md:hidden divide-y">
-              {timelineWithBalance.map((entry) => (
-                <div key={entry.id} className="p-4">
-                  <div className="flex items-start gap-3 mb-3">
-                    <div className="flex-shrink-0 mt-1">
-                      {getActionIcon(entry.action)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className={`text-sm font-medium px-2 py-0.5 rounded ${
-                          entry.action === 'stock_in' ? 'bg-green-100 text-green-800' :
-                          entry.action === 'stock_out' ? 'bg-red-100 text-red-800' :
-                          'bg-gray-100 text-gray-800'
-                        }`}>
-                          {getActionLabel(entry.action)}
-                        </span>
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        {formatTimestamp(entry.timestamp)}
-                      </div>
+              {productSummaries.map((summary) => (
+                <div key={summary.productId} className="p-4">
+                  <div className="flex justify-between items-start mb-3">
+                    <div>
+                      <div className="font-medium text-gray-900">{summary.productName}</div>
+                      <div className="text-xs text-gray-500">SKU: {summary.sku}</div>
                     </div>
                     <div className="text-right">
-                      <div className={`text-lg font-semibold ${
-                        entry.action === 'stock_in' ? 'text-green-600' :
-                        entry.action === 'stock_out' ? 'text-red-600' :
-                        'text-gray-600'
-                      }`}>
-                        {entry.action === 'stock_in' ? '+' : entry.action === 'stock_out' ? '-' : ''}
-                        {entry.quantity}
+                      <div className="text-lg font-bold text-blue-600">
+                        {summary.currentStock} {summary.unitOfMeasure}
                       </div>
-                      <div className="text-xs text-gray-500">
-                        Balance: {entry.runningBalance}
-                      </div>
+                      <div className="text-xs text-gray-500">Current Stock</div>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm ml-8">
-                    <div className="text-gray-500">Date:</div>
-                    <div className="text-gray-900">{formatDate(entry)}</div>
-                    {entry.contactPerson && (
-                      <>
-                        <div className="text-gray-500">
-                          {entry.action === 'stock_in' ? 'Received By:' : 'Issued To:'}
-                        </div>
-                        <div className="text-gray-900">{entry.contactPerson}</div>
-                      </>
-                    )}
-                    {entry.pricePerUnit && (
-                      <>
-                        <div className="text-gray-500">Price/Unit:</div>
-                        <div className="text-gray-900">₹{entry.pricePerUnit.toFixed(2)}</div>
-                        <div className="text-gray-500">Total:</div>
-                        <div className="text-gray-900 font-medium">
-                          ₹{(entry.pricePerUnit * entry.quantity).toFixed(2)}
-                        </div>
-                      </>
-                    )}
+                  <div className="grid grid-cols-3 gap-2 text-center">
+                    <div className="bg-green-50 rounded p-2">
+                      <div className="text-green-600 font-semibold">+{summary.totalIn}</div>
+                      <div className="text-xs text-gray-600">In</div>
+                    </div>
+                    <div className="bg-red-50 rounded p-2">
+                      <div className="text-red-600 font-semibold">-{summary.totalOut}</div>
+                      <div className="text-xs text-gray-600">Out</div>
+                    </div>
+                    <div className="bg-blue-50 rounded p-2">
+                      <div className={`font-semibold ${summary.totalIn - summary.totalOut >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {summary.totalIn - summary.totalOut >= 0 ? '+' : ''}{summary.totalIn - summary.totalOut}
+                      </div>
+                      <div className="text-xs text-gray-600">Net</div>
+                    </div>
                   </div>
 
-                  {entry.notes && entry.notes !== '-' && (
-                    <div className="mt-3 pt-3 border-t ml-8">
-                      <div className="text-xs text-gray-500 mb-1">Notes:</div>
-                      <div className="text-sm text-gray-700">{entry.notes}</div>
+                  {summary.totalValueIn > 0 && (
+                    <div className="mt-2 text-sm text-gray-600 text-right">
+                      Value In: ₹{summary.totalValueIn.toLocaleString()}
                     </div>
                   )}
                 </div>
@@ -477,80 +358,71 @@ export const ProductTimelineReport: React.FC<ProductTimelineReportProps> = ({ pr
               <table className="w-full">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-2 py-3 text-center text-sm font-medium w-10"></th>
-                    <th className="px-4 py-3 text-left text-sm font-medium">Timestamp</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium">Date</th>
-                    <th className="px-4 py-3 text-center text-sm font-medium">Action</th>
-                    <th className="px-4 py-3 text-right text-sm font-medium">Quantity</th>
-                    <th className="px-4 py-3 text-right text-sm font-medium">Balance</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium">Contact</th>
-                    <th className="px-4 py-3 text-right text-sm font-medium">Price/Unit</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium">Notes</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium">Product</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium">SKU</th>
+                    <th className="px-4 py-3 text-right text-sm font-medium text-green-600">Stock In</th>
+                    <th className="px-4 py-3 text-right text-sm font-medium text-red-600">Stock Out</th>
+                    <th className="px-4 py-3 text-right text-sm font-medium">Net Change</th>
+                    <th className="px-4 py-3 text-right text-sm font-medium text-blue-600">Current Stock</th>
+                    <th className="px-4 py-3 text-right text-sm font-medium">Value In</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
-                  {timelineWithBalance.map((entry) => (
-                    <tr key={entry.id} className="hover:bg-gray-50">
-                      <td className="px-2 py-3 text-center">
-                        {getActionIcon(entry.action)}
+                  {productSummaries.map((summary) => (
+                    <tr key={summary.productId} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 text-sm font-medium">{summary.productName}</td>
+                      <td className="px-4 py-3 text-sm text-gray-500">{summary.sku}</td>
+                      <td className="px-4 py-3 text-right text-sm text-green-600 font-medium">
+                        +{summary.totalIn} {summary.unitOfMeasure}
+                        {summary.stockInCount > 0 && (
+                          <span className="text-xs text-gray-400 ml-1">({summary.stockInCount})</span>
+                        )}
                       </td>
-                      <td className="px-4 py-3 text-sm">
-                        {formatTimestamp(entry.timestamp)}
+                      <td className="px-4 py-3 text-right text-sm text-red-600 font-medium">
+                        -{summary.totalOut} {summary.unitOfMeasure}
+                        {summary.stockOutCount > 0 && (
+                          <span className="text-xs text-gray-400 ml-1">({summary.stockOutCount})</span>
+                        )}
                       </td>
-                      <td className="px-4 py-3 text-sm">
-                        {formatDate(entry)}
+                      <td className={`px-4 py-3 text-right text-sm font-medium ${
+                        summary.totalIn - summary.totalOut >= 0 ? 'text-green-600' : 'text-red-600'
+                      }`}>
+                        {summary.totalIn - summary.totalOut >= 0 ? '+' : ''}
+                        {summary.totalIn - summary.totalOut} {summary.unitOfMeasure}
                       </td>
-                      <td className="px-4 py-3 text-center">
-                        <span className={`text-xs font-medium px-2 py-1 rounded ${
-                          entry.action === 'stock_in' ? 'bg-green-100 text-green-800' :
-                          entry.action === 'stock_out' ? 'bg-red-100 text-red-800' :
-                          'bg-gray-100 text-gray-800'
-                        }`}>
-                          {getActionLabel(entry.action)}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-right font-medium">
-                        <span className={
-                          entry.action === 'stock_in' ? 'text-green-600' :
-                          entry.action === 'stock_out' ? 'text-red-600' :
-                          'text-gray-600'
-                        }>
-                          {entry.action === 'stock_in' ? '+' : entry.action === 'stock_out' ? '-' : ''}
-                          {entry.quantity} {selectedProduct.unitOfMeasure}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-right font-semibold text-blue-600">
-                        {entry.runningBalance} {selectedProduct.unitOfMeasure}
-                      </td>
-                      <td className="px-4 py-3 text-sm">
-                        {entry.contactPerson || '-'}
+                      <td className="px-4 py-3 text-right text-sm font-bold text-blue-600">
+                        {summary.currentStock} {summary.unitOfMeasure}
                       </td>
                       <td className="px-4 py-3 text-right text-sm">
-                        {entry.pricePerUnit ? (
-                          <div>
-                            <div>₹{entry.pricePerUnit.toFixed(2)}</div>
-                            {entry.quantity > 0 && (
-                              <div className="text-xs text-gray-500">
-                                Total: ₹{(entry.pricePerUnit * entry.quantity).toFixed(2)}
-                              </div>
-                            )}
-                          </div>
-                        ) : '-'}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-600 max-w-[200px] truncate">
-                        {entry.notes || '-'}
+                        {summary.totalValueIn > 0 ? `₹${summary.totalValueIn.toLocaleString()}` : '-'}
                       </td>
                     </tr>
                   ))}
                 </tbody>
+                <tfoot className="bg-gray-100 font-semibold">
+                  <tr>
+                    <td className="px-4 py-3 text-sm" colSpan={2}>TOTAL</td>
+                    <td className="px-4 py-3 text-right text-sm text-green-600">+{totals.totalIn}</td>
+                    <td className="px-4 py-3 text-right text-sm text-red-600">-{totals.totalOut}</td>
+                    <td className={`px-4 py-3 text-right text-sm ${
+                      totals.totalIn - totals.totalOut >= 0 ? 'text-green-600' : 'text-red-600'
+                    }`}>
+                      {totals.totalIn - totals.totalOut >= 0 ? '+' : ''}{totals.totalIn - totals.totalOut}
+                    </td>
+                    <td className="px-4 py-3 text-right text-sm text-blue-600">{totals.currentStock}</td>
+                    <td className="px-4 py-3 text-right text-sm">
+                      {totals.totalValueIn > 0 ? `₹${totals.totalValueIn.toLocaleString()}` : '-'}
+                    </td>
+                  </tr>
+                </tfoot>
               </table>
             </div>
 
             {/* Empty State */}
-            {timelineWithBalance.length === 0 && !loading && (
+            {productSummaries.length === 0 && !loading && (
               <div className="text-center py-12 text-gray-500">
-                No stock movements found for this product
-                {dateRange !== 'all' && ' in the selected date range'}.
+                No stock movements found
+                {dateRange !== 'all' && ` in ${getDateRangeLabel(dateRange).toLowerCase()}`}.
               </div>
             )}
           </div>
