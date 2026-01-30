@@ -22,66 +22,27 @@ interface ProductSummary {
 
 export const ProductTimelineReport: React.FC<ProductTimelineReportProps> = ({ products }) => {
   const [dateRange, setDateRange] = useState<HistoryDateRangeFilter>('all');
-  const [allHistory, setAllHistory] = useState<HistoryEntry[]>([]);
+  const [historyData, setHistoryData] = useState<HistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
 
-  // Load all history on mount
+  // Load history when dateRange changes - filtering is done at database level
   useEffect(() => {
     const loadHistory = async () => {
       setLoading(true);
       try {
-        const data = await StorageService.getAllHistory();
-        setAllHistory(data);
+        const data = await StorageService.getAllHistory(dateRange);
+        setHistoryData(data);
       } catch (error) {
         console.error('Error loading history:', error);
-        setAllHistory([]);
+        setHistoryData([]);
       } finally {
         setLoading(false);
       }
     };
 
     loadHistory();
-  }, []);
-
-  // Filter history by date range
-  const filteredHistory = useMemo(() => {
-    if (dateRange === 'all') return allHistory;
-
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    let startDate: Date;
-    let endDate: Date = now;
-
-    switch (dateRange) {
-      case 'today':
-        startDate = today;
-        endDate = new Date(today.getTime() + 24 * 60 * 60 * 1000 - 1);
-        break;
-      case 'weekly':
-        startDate = new Date(today);
-        startDate.setDate(startDate.getDate() - 7);
-        break;
-      case 'current_month':
-        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-        break;
-      case 'previous_month':
-        startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-        endDate = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
-        break;
-      case '3_months':
-        startDate = new Date(today);
-        startDate.setMonth(startDate.getMonth() - 3);
-        break;
-      default:
-        return allHistory;
-    }
-
-    return allHistory.filter(entry => {
-      const entryDate = new Date(entry.timestamp);
-      return entryDate >= startDate && entryDate <= endDate;
-    });
-  }, [allHistory, dateRange]);
+  }, [dateRange]);
 
   // Calculate summary for each product
   const productSummaries = useMemo((): ProductSummary[] => {
@@ -103,8 +64,8 @@ export const ProductTimelineReport: React.FC<ProductTimelineReportProps> = ({ pr
       });
     });
 
-    // Aggregate history data (filtered by date range)
-    filteredHistory.forEach(entry => {
+    // Aggregate history data (already filtered by date range at database level)
+    historyData.forEach(entry => {
       if (entry.productId && summaryMap.has(entry.productId)) {
         const summary = summaryMap.get(entry.productId)!;
 
@@ -125,7 +86,7 @@ export const ProductTimelineReport: React.FC<ProductTimelineReportProps> = ({ pr
     return Array.from(summaryMap.values())
       .filter(s => s.totalIn > 0 || s.totalOut > 0 || dateRange === 'all')
       .sort((a, b) => a.productName.localeCompare(b.productName));
-  }, [products, filteredHistory, dateRange]);
+  }, [products, historyData, dateRange]);
 
   // Calculate totals
   const totals = useMemo(() => {
@@ -297,8 +258,7 @@ export const ProductTimelineReport: React.FC<ProductTimelineReportProps> = ({ pr
               <div className="px-4 py-2 bg-gray-50 border-b text-sm text-gray-600">
                 Showing {productSummaries.length} products
                 {dateRange !== 'all' && ` with activity in ${getDateRangeLabel(dateRange).toLowerCase()}`}
-                {' '}| {allHistory.length} total history records loaded
-                {dateRange !== 'all' && `, ${filteredHistory.length} in selected period`}
+                {' '}| {historyData.length} history records loaded
               </div>
             )}
 
