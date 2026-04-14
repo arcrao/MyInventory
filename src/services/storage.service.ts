@@ -73,24 +73,51 @@ export class StorageService {
     }
   }
 
+  // Get all products with category names - for current stock report
+  static async getAllProductsWithCategories(): Promise<Array<{ id: number; name: string; sku: string; quantity: number; unitOfMeasure: string; categoryId: string; categoryName: string }>> {
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select('id, name, sku, quantity, unit_of_measure, category_id, categories(name)')
+        .order('name', { ascending: true });
+
+      if (error) throw error;
+
+      return (data || []).map((item: any) => ({
+        id: item.id,
+        name: item.name,
+        sku: item.sku,
+        quantity: item.quantity,
+        unitOfMeasure: item.unit_of_measure,
+        categoryId: item.category_id || '',
+        categoryName: item.categories?.name || 'Uncategorized'
+      }));
+    } catch (error) {
+      console.error('Error getting all products with categories:', error);
+      return [];
+    }
+  }
+
   // Get products by IDs - for fetching current stock in reports
-  static async getProductsByIds(productIds: number[]): Promise<Map<number, { quantity: number; sku: string; unitOfMeasure: string }>> {
+  static async getProductsByIds(productIds: number[]): Promise<Map<number, { quantity: number; sku: string; unitOfMeasure: string; categoryId: string; categoryName: string }>> {
     try {
       if (productIds.length === 0) return new Map();
 
       const { data, error } = await supabase
         .from('products')
-        .select('id, quantity, sku, unit_of_measure')
+        .select('id, quantity, sku, unit_of_measure, category_id, categories(name)')
         .in('id', productIds);
 
       if (error) throw error;
 
-      const result = new Map<number, { quantity: number; sku: string; unitOfMeasure: string }>();
-      (data || []).forEach(item => {
+      const result = new Map<number, { quantity: number; sku: string; unitOfMeasure: string; categoryId: string; categoryName: string }>();
+      (data || []).forEach((item: any) => {
         result.set(item.id, {
           quantity: item.quantity,
           sku: item.sku,
-          unitOfMeasure: item.unit_of_measure
+          unitOfMeasure: item.unit_of_measure,
+          categoryId: item.category_id || '',
+          categoryName: item.categories?.name || 'Uncategorized'
         });
       });
 
