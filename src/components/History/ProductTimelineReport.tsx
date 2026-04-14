@@ -159,7 +159,7 @@ export const ProductTimelineReport: React.FC = () => {
       rows.push(['GRAND TOTAL', '', '', totals.totalIn.toString(), totals.totalOut.toString(), totals.currentStock.toString(), totals.totalValueIn > 0 ? totals.totalValueIn.toFixed(2) : '']);
 
       const csvContent = [
-        'Product Timeline Report', `Period: ${getDateRangeLabel()}`, `Generated: ${new Date().toLocaleString()}`, '',
+        'Stock Movement Report', `Period: ${getDateRangeLabel()}`, `Generated: ${new Date().toLocaleString()}`, '',
         ['Category / Product', 'SKU', 'Unit', 'Stock In', 'Stock Out', 'Current Stock', 'Value In (₹)'].join(','),
         ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
       ].join('\n');
@@ -167,7 +167,7 @@ export const ProductTimelineReport: React.FC = () => {
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
-      link.download = `product_timeline_${new Date().toISOString().slice(0, 10)}.csv`;
+      link.download = `stock_movement_${new Date().toISOString().slice(0, 10)}.csv`;
       link.click();
     } catch (error) {
       alert('Failed to export CSV.');
@@ -183,7 +183,7 @@ export const ProductTimelineReport: React.FC = () => {
 
       // Title
       doc.setFontSize(16);
-      doc.text('Product Timeline Report', 14, 16);
+      doc.text('Stock Movement Report', 14, 16);
       doc.setFontSize(10);
       doc.setTextColor(100);
       doc.text(`Period: ${getDateRangeLabel()}`, 14, 23);
@@ -197,13 +197,9 @@ export const ProductTimelineReport: React.FC = () => {
 
       const tableBody: any[] = [];
       categoryGroups.forEach(group => {
-        // Category header row
+        // Category header row (no totals - only grand total at end)
         tableBody.push([
-          { content: group.categoryName.toUpperCase(), colSpan: 2, styles: { fillColor: [220, 220, 220], fontStyle: 'bold', textColor: [50, 50, 50] } },
-          { content: `+${group.totalIn}`, styles: { fillColor: [220, 220, 220], fontStyle: 'bold', textColor: [22, 163, 74] } },
-          { content: `-${group.totalOut}`, styles: { fillColor: [220, 220, 220], fontStyle: 'bold', textColor: [220, 38, 38] } },
-          { content: group.currentStock.toString(), styles: { fillColor: [220, 220, 220], fontStyle: 'bold', textColor: [37, 99, 235] } },
-          { content: group.totalValueIn > 0 ? `₹${group.totalValueIn.toLocaleString()}` : '-', styles: { fillColor: [220, 220, 220], fontStyle: 'bold' } },
+          { content: group.categoryName.toUpperCase(), colSpan: 6, styles: { fillColor: [220, 220, 220], fontStyle: 'bold', textColor: [50, 50, 50] } },
         ]);
         // Product rows
         group.summaries.forEach(s => {
@@ -230,7 +226,7 @@ export const ProductTimelineReport: React.FC = () => {
         margin: { left: 14, right: 14 },
       });
 
-      doc.save(`product_timeline_${new Date().toISOString().slice(0, 10)}.pdf`);
+      doc.save(`stock_movement_${new Date().toISOString().slice(0, 10)}.pdf`);
     } catch (error) {
       alert('Failed to export PDF.');
     }
@@ -240,7 +236,7 @@ export const ProductTimelineReport: React.FC = () => {
     <div>
       <div className="mb-4">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-3">
-          <h2 className="text-xl sm:text-2xl font-bold">Product Timeline Report</h2>
+          <h2 className="text-xl sm:text-2xl font-bold">Stock Movement Report</h2>
           {productSummaries.length > 0 && (
             <div className="flex gap-2 w-full sm:w-auto">
               <button onClick={handleExportCSV} disabled={isExporting}

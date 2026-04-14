@@ -202,7 +202,7 @@ const AuthenticatedApp: React.FC<{ user: any }> = ({ user }) => {
                       : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50'
                   }`}
                 >
-                  {type === 'all' ? 'All History' : type === 'timeline' ? 'Product Timeline' : 'Current Stock'}
+                  {type === 'all' ? 'All History' : type === 'timeline' ? 'Stock Movement' : 'Current Stock'}
                 </button>
               ))}
             </div>
