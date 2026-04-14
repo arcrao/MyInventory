@@ -662,7 +662,9 @@ export class StorageService {
   // Optionally filter by date range and action at database level for better performance
   static async getAllHistory(
     dateRangeFilter: HistoryDateRangeFilter = 'all',
-    actionFilter: HistoryActionFilter = 'all'
+    actionFilter: HistoryActionFilter = 'all',
+    customStartDate?: string,
+    customEndDate?: string
   ): Promise<HistoryEntry[]> {
     try {
       console.log('[StorageService] Fetching ALL history entries, dateRange:', dateRangeFilter, 'action:', actionFilter);
@@ -672,7 +674,9 @@ export class StorageService {
       let hasMore = true;
 
       // Get date range for filtering
-      const dateRange = this.getDateRangeFilter(dateRangeFilter);
+      const dateRange = dateRangeFilter === 'custom' && customStartDate && customEndDate
+        ? { start: new Date(customStartDate), end: new Date(customEndDate + 'T23:59:59') }
+        : this.getDateRangeFilter(dateRangeFilter);
 
       while (hasMore) {
         const from = page * pageSize;

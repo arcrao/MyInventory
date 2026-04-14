@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Download, Package, ChevronDown, ChevronRight } from 'lucide-react';
+import { Download, Package, ChevronDown, ChevronRight, FileText } from 'lucide-react';
 import { StorageService } from '../../services/storage.service';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 interface StockItem {
   id: number;
@@ -24,6 +26,7 @@ export const CurrentStockReport: React.FC = () => {
   const [excludeZero, setExcludeZero] = useState(false);
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
   const [isExporting, setIsExporting] = useState(false);
+  const [isExportingPDF, setIsExportingPDF] = useState(false);
 
   useEffect(() => {
     const loadProducts = async () => {
@@ -108,6 +111,61 @@ export const CurrentStockReport: React.FC = () => {
     }
   };
 
+  const handleExportPDF = () => {
+    if (filteredProducts.length === 0) return;
+    setIsExportingPDF(true);
+    try {
+      const doc = new jsPDF({ orientation: 'landscape' });
+
+      doc.setFontSize(16);
+      doc.text('Current Stock Report', 14, 16);
+      doc.setFontSize(10);
+      doc.setTextColor(100);
+      doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 23);
+      if (excludeZero) doc.text('Excludes zero-stock products', 14, 29);
+
+      doc.setTextColor(0);
+      doc.setFontSize(9);
+      const startY = excludeZero ? 35 : 30;
+      doc.text(`Products: ${filteredProducts.length}  |  Total Quantity: ${totalQuantity}  |  Categories: ${categoryGroups.length}`, 14, startY);
+
+      const tableBody: any[] = [];
+      categoryGroups.forEach(group => {
+        tableBody.push([
+          { content: group.categoryName.toUpperCase(), colSpan: 2, styles: { fillColor: [220, 220, 220], fontStyle: 'bold', textColor: [50, 50, 50] } },
+          { content: group.totalQuantity.toString(), styles: { fillColor: [220, 220, 220], fontStyle: 'bold', textColor: [37, 99, 235] } },
+          { content: '', styles: { fillColor: [220, 220, 220] } },
+        ]);
+        group.items.forEach(item => {
+          tableBody.push([
+            `  ${item.name}`,
+            item.sku,
+            { content: item.quantity.toString(), styles: { textColor: item.quantity === 0 ? [220, 38, 38] : [37, 99, 235], fontStyle: 'bold' } },
+            item.unitOfMeasure,
+          ]);
+        });
+      });
+
+      autoTable(doc, {
+        startY: startY + 5,
+        head: [['Product', 'SKU', 'Quantity', 'Unit']],
+        body: tableBody,
+        foot: [['GRAND TOTAL', '', totalQuantity.toString(), '']],
+        headStyles: { fillColor: [37, 99, 235], textColor: 255, fontStyle: 'bold', fontSize: 9 },
+        footStyles: { fillColor: [243, 244, 246], textColor: [30, 30, 30], fontStyle: 'bold', fontSize: 9 },
+        bodyStyles: { fontSize: 8 },
+        columnStyles: { 2: { halign: 'right' } },
+        margin: { left: 14, right: 14 },
+      });
+
+      doc.save(`current_stock_${new Date().toISOString().slice(0, 10)}.pdf`);
+    } catch (error) {
+      alert('Failed to export PDF.');
+    } finally {
+      setIsExportingPDF(false);
+    }
+  };
+
   return (
     <div>
       {/* Header */}
@@ -115,11 +173,18 @@ export const CurrentStockReport: React.FC = () => {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-3">
           <h2 className="text-xl sm:text-2xl font-bold">Current Stock Report</h2>
           {filteredProducts.length > 0 && (
-            <button onClick={handleExport} disabled={isExporting}
-              className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 flex items-center gap-2 disabled:bg-gray-400 text-sm min-h-[44px] w-full sm:w-auto justify-center">
-              <Download className="w-4 h-4" />
-              {isExporting ? 'Exporting...' : 'Export CSV'}
-            </button>
+            <div className="flex gap-2 w-full sm:w-auto">
+              <button onClick={handleExport} disabled={isExporting}
+                className="flex-1 sm:flex-none bg-green-600 text-white px-3 py-2 rounded hover:bg-green-700 flex items-center gap-2 disabled:bg-gray-400 text-sm min-h-[44px] justify-center">
+                <Download className="w-4 h-4" />
+                {isExporting ? 'Exporting...' : 'CSV'}
+              </button>
+              <button onClick={handleExportPDF} disabled={isExportingPDF}
+                className="flex-1 sm:flex-none bg-red-600 text-white px-3 py-2 rounded hover:bg-red-700 flex items-center gap-2 disabled:bg-gray-400 text-sm min-h-[44px] justify-center">
+                <FileText className="w-4 h-4" />
+                {isExportingPDF ? 'Exporting...' : 'PDF'}
+              </button>
+            </div>
           )}
         </div>
 
