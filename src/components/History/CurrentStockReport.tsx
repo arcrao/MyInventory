@@ -62,7 +62,10 @@ export const CurrentStockReport: React.FC = () => {
       group.totalQuantity += product.quantity;
     });
 
-    return Array.from(groupMap.values()).sort((a, b) => a.categoryName.localeCompare(b.categoryName));
+    // Sort categories by name, and items within each category by name
+    const groups = Array.from(groupMap.values()).sort((a, b) => a.categoryName.localeCompare(b.categoryName));
+    groups.forEach(g => g.items.sort((a, b) => a.name.localeCompare(b.name)));
+    return groups;
   }, [filteredProducts]);
 
   const totalQuantity = useMemo(() => filteredProducts.reduce((s, p) => s + p.quantity, 0), [filteredProducts]);

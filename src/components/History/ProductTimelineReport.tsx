@@ -118,7 +118,10 @@ export const ProductTimelineReport: React.FC = () => {
       group.currentStock += summary.currentStock;
       group.totalValueIn += summary.totalValueIn;
     });
-    return Array.from(groupMap.values()).sort((a, b) => a.categoryName.localeCompare(b.categoryName));
+    // Sort categories by name, and products within each category by name
+    const groups = Array.from(groupMap.values()).sort((a, b) => a.categoryName.localeCompare(b.categoryName));
+    groups.forEach(g => g.summaries.sort((a, b) => a.productName.localeCompare(b.productName)));
+    return groups;
   }, [productSummaries]);
 
   const totals = useMemo(() => ({
