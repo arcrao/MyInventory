@@ -57,14 +57,13 @@ export const useProducts = (user: User | null) => {
   };
 
   const applyFilters = (newFilters: { searchTerm: string; categoryId: string }) => {
-    setCurrentPage(0); // Reset to first page
     loadProducts(0, newFilters);
   };
 
   useEffect(() => {
     loadProducts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, currentPage]);
+  }, [user]);
 
   const addProduct = async (productData: ProductFormData, skipReload: boolean = false): Promise<void> => {
     // Use atomic RPC transaction (single database call)
@@ -128,7 +127,7 @@ export const useProducts = (user: User | null) => {
   };
 
   const goToPage = (page: number) => {
-    setCurrentPage(page);
+    loadProducts(page);
   };
 
   const totalPages = Math.ceil(totalCount / pageSize);
