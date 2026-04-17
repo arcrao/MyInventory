@@ -40,7 +40,7 @@ export interface HistoryEntry {
 }
 
 export type HistoryActionFilter = 'all' | 'stock_in' | 'stock_out';
-export type HistoryDateRangeFilter = 'all' | 'today' | 'yesterday' | 'weekly' | 'current_month' | 'previous_month' | '3_months';
+export type HistoryDateRangeFilter = 'all' | 'today' | 'yesterday' | 'weekly' | 'current_month' | 'previous_month' | '3_months' | 'custom';
 
 export interface HistoryFilters {
   action: HistoryActionFilter;

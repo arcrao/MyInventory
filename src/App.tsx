@@ -6,6 +6,8 @@ import { ProductDetail } from './components/Products/ProductDetail';
 import { ProductForm } from './components/Products/ProductForm';
 import { StockAdjustmentModal } from './components/Products/StockAdjustmentModal';
 import { HistoryView } from './components/History/HistoryView';
+import { ProductTimelineReport } from './components/History/ProductTimelineReport';
+import { CurrentStockReport } from './components/History/CurrentStockReport';
 import { SettingsView } from './components/Settings/SettingsView';
 import { AuthForm } from './components/Auth/AuthForm';
 import { useAuth } from './contexts/AuthContext';
@@ -16,6 +18,8 @@ import { useHistory } from './hooks/useHistory';
 import { Product, TabType } from './types';
 
 // Separate component for authenticated app to ensure clean remount on auth changes
+type HistoryViewType = 'all' | 'timeline' | 'current_stock';
+
 const AuthenticatedApp: React.FC<{ user: any }> = ({ user }) => {
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
   const [showProductForm, setShowProductForm] = useState(false);
@@ -23,6 +27,7 @@ const AuthenticatedApp: React.FC<{ user: any }> = ({ user }) => {
   const [showStockAdjustment, setShowStockAdjustment] = useState(false);
   const [adjustingProduct, setAdjustingProduct] = useState<Product | null>(null);
   const [viewingProduct, setViewingProduct] = useState<Product | null>(null);
+  const [historyViewType, setHistoryViewType] = useState<HistoryViewType>('all');
 
   const {
     history,
@@ -185,16 +190,38 @@ const AuthenticatedApp: React.FC<{ user: any }> = ({ user }) => {
           />
         )}
         {activeTab === 'history' && (
-          <HistoryView
-            history={history}
-            products={products}
-            currentPage={historyPage}
-            totalPages={historyTotalPages}
-            totalCount={historyTotalCount}
-            filters={historyFilters}
-            onFilterChange={applyHistoryFilters}
-            onPageChange={goToHistoryPage}
-          />
+          <div>
+            {/* History View Type Toggle */}
+            <div className="flex gap-2 mb-4 flex-wrap">
+              {(['all', 'timeline', 'current_stock'] as HistoryViewType[]).map((type) => (
+                <button key={type}
+                  onClick={() => setHistoryViewType(type)}
+                  className={`px-4 py-2 rounded text-sm font-medium min-h-[40px] transition-colors ${
+                    historyViewType === type
+                      ? 'bg-blue-100 text-blue-700 border-2 border-blue-500'
+                      : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  {type === 'all' ? 'All History' : type === 'timeline' ? 'Stock Movement' : 'Current Stock'}
+                </button>
+              ))}
+            </div>
+
+            {historyViewType === 'all' && (
+              <HistoryView
+                history={history}
+                products={products}
+                currentPage={historyPage}
+                totalPages={historyTotalPages}
+                totalCount={historyTotalCount}
+                filters={historyFilters}
+                onFilterChange={applyHistoryFilters}
+                onPageChange={goToHistoryPage}
+              />
+            )}
+            {historyViewType === 'timeline' && <ProductTimelineReport />}
+            {historyViewType === 'current_stock' && <CurrentStockReport />}
+          </div>
         )}
         {activeTab === 'settings' && (
           <SettingsView

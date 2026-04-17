@@ -73,6 +73,61 @@ export class StorageService {
     }
   }
 
+  // Get all products with category names - for current stock report
+  static async getAllProductsWithCategories(): Promise<Array<{ id: number; name: string; sku: string; quantity: number; unitOfMeasure: string; categoryId: string; categoryName: string }>> {
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select('id, name, sku, quantity, unit_of_measure, category_id, categories(name)')
+        .order('name', { ascending: true });
+
+      if (error) throw error;
+
+      return (data || []).map((item: any) => ({
+        id: item.id,
+        name: item.name,
+        sku: item.sku,
+        quantity: item.quantity,
+        unitOfMeasure: item.unit_of_measure,
+        categoryId: item.category_id || '',
+        categoryName: item.categories?.name || 'Uncategorized'
+      }));
+    } catch (error) {
+      console.error('Error getting all products with categories:', error);
+      return [];
+    }
+  }
+
+  // Get products by IDs - for fetching current stock in reports
+  static async getProductsByIds(productIds: number[]): Promise<Map<number, { quantity: number; sku: string; unitOfMeasure: string; categoryId: string; categoryName: string }>> {
+    try {
+      if (productIds.length === 0) return new Map();
+
+      const { data, error } = await supabase
+        .from('products')
+        .select('id, quantity, sku, unit_of_measure, category_id, categories(name)')
+        .in('id', productIds);
+
+      if (error) throw error;
+
+      const result = new Map<number, { quantity: number; sku: string; unitOfMeasure: string; categoryId: string; categoryName: string }>();
+      (data || []).forEach((item: any) => {
+        result.set(item.id, {
+          quantity: item.quantity,
+          sku: item.sku,
+          unitOfMeasure: item.unit_of_measure,
+          categoryId: item.category_id || '',
+          categoryName: item.categories?.name || 'Uncategorized'
+        });
+      });
+
+      return result;
+    } catch (error) {
+      console.error('Error getting products by IDs:', error);
+      return new Map();
+    }
+  }
+
   // Products
   static async getProducts(page?: number, pageSize: number = 50, categoryId?: string, searchTerm?: string): Promise<Product[]> {
     try {
@@ -602,19 +657,66 @@ export class StorageService {
     }
   }
 
-  // Get ALL history entries (no pagination) - for CSV export
-  static async getAllHistory(): Promise<HistoryEntry[]> {
+  // Get ALL history entries (no pagination) - for CSV export and reports
+  // Uses pagination internally to fetch all records (Supabase default limit is 1000)
+  // Optionally filter by date range and action at database level for better performance
+  static async getAllHistory(
+    dateRangeFilter: HistoryDateRangeFilter = 'all',
+    actionFilter: HistoryActionFilter = 'all',
+    customStartDate?: string,
+    customEndDate?: string
+  ): Promise<HistoryEntry[]> {
     try {
-      console.log('[StorageService] Fetching ALL history entries for export');
-      const { data, error } = await supabase
-        .from('history')
-        .select('*, products(name)')
-        .order('created_at', { ascending: false });
+      console.log('[StorageService] Fetching ALL history entries, dateRange:', dateRangeFilter, 'action:', actionFilter);
+      const allData: any[] = [];
+      const pageSize = 1000;
+      let page = 0;
+      let hasMore = true;
 
-      if (error) throw error;
+      // Get date range for filtering
+      const dateRange = dateRangeFilter === 'custom' && customStartDate && customEndDate
+        ? { start: new Date(customStartDate), end: new Date(customEndDate + 'T23:59:59') }
+        : this.getDateRangeFilter(dateRangeFilter);
 
-      console.log('[StorageService] Fetched all history:', data?.length || 0, 'items');
-      return (data || []).map(item => ({
+      while (hasMore) {
+        const from = page * pageSize;
+        const to = from + pageSize - 1;
+
+        let query = supabase
+          .from('history')
+          .select('*, products(name)')
+          .order('created_at', { ascending: false });
+
+        // Apply date range filter at database level
+        if (dateRange) {
+          query = query
+            .gte('created_at', dateRange.start.toISOString())
+            .lte('created_at', dateRange.end.toISOString());
+        }
+
+        // Apply action filter at database level
+        // For timeline reports, only fetch stock_in and stock_out actions
+        if (actionFilter === 'all') {
+          query = query.in('action', ['stock_in', 'stock_out']);
+        } else {
+          query = query.eq('action', actionFilter);
+        }
+
+        const { data, error } = await query.range(from, to);
+
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+          allData.push(...data);
+          hasMore = data.length === pageSize;
+          page++;
+        } else {
+          hasMore = false;
+        }
+      }
+
+      console.log('[StorageService] Fetched all history:', allData.length, 'items');
+      return allData.map(item => ({
         id: item.id,
         productId: item.product_id,
         productName: item.product_name || item.products?.name,

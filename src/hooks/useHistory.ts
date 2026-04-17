@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { HistoryEntry, HistoryFilters } from '../types';
 import { StorageService } from '../services/storage.service';
 import { User } from '@supabase/supabase-js';
@@ -14,6 +14,7 @@ export const useHistory = (user: User | null) => {
   });
   const [loading, setLoading] = useState(true);
   const pageSize = 50;
+  const isApplyingFilters = useRef(false);
 
   const loadHistory = async (
     page?: number,
@@ -60,8 +61,11 @@ export const useHistory = (user: User | null) => {
   };
 
   const applyFilters = (newFilters: Partial<HistoryFilters>) => {
+    isApplyingFilters.current = true;
     setCurrentPage(0); // Reset to first page
-    loadHistory(0, newFilters);
+    loadHistory(0, newFilters).finally(() => {
+      isApplyingFilters.current = false;
+    });
   };
 
   const goToPage = (page: number) => {
@@ -69,6 +73,11 @@ export const useHistory = (user: User | null) => {
   };
 
   useEffect(() => {
+    // Skip if we're applying filters (to avoid double load)
+    if (isApplyingFilters.current) {
+      console.log('[useHistory] Skipping useEffect - filters being applied');
+      return;
+    }
     console.log('[useHistory] useEffect triggered, user:', !!user, 'currentPage:', currentPage);
     loadHistory();
   }, [user, currentPage]);

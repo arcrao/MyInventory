@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Search, X } from 'lucide-react';
 import { Category } from '../../types';
 
@@ -8,6 +8,9 @@ interface ProductFiltersProps {
   onFilterChange: (filters: { searchTerm: string; categoryId: string }) => void;
 }
 
+const MIN_SEARCH_LENGTH = 3;
+const DEBOUNCE_DELAY = 300;
+
 export const ProductFilters: React.FC<ProductFiltersProps> = ({
   categories,
   currentFilters,
@@ -15,6 +18,7 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
 }) => {
   const [searchTerm, setSearchTerm] = useState(currentFilters.searchTerm);
   const [categoryId, setCategoryId] = useState(currentFilters.categoryId);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Sync local state with current filters when they change
   useEffect(() => {
@@ -22,9 +26,29 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
     setCategoryId(currentFilters.categoryId);
   }, [currentFilters.searchTerm, currentFilters.categoryId]);
 
+  // Cleanup debounce on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+    };
+  }, []);
+
   const handleSearchChange = (value: string) => {
     setSearchTerm(value);
-    onFilterChange({ searchTerm: value, categoryId });
+
+    // Clear any pending debounce
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+
+    // Only trigger search if empty (clearing) or has minimum characters
+    if (value === '' || value.length >= MIN_SEARCH_LENGTH) {
+      debounceRef.current = setTimeout(() => {
+        onFilterChange({ searchTerm: value, categoryId });
+      }, DEBOUNCE_DELAY);
+    }
   };
 
   const handleCategoryChange = (value: string) => {
@@ -51,10 +75,15 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
               type="text"
               value={searchTerm}
               onChange={(e) => handleSearchChange(e.target.value)}
-              placeholder="Search products..."
+              placeholder="Type at least 3 characters to search..."
               className="w-full pl-10 pr-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
+          {searchTerm.length > 0 && searchTerm.length < MIN_SEARCH_LENGTH && (
+            <p className="text-xs text-gray-500 mt-1">
+              Type {MIN_SEARCH_LENGTH - searchTerm.length} more character{MIN_SEARCH_LENGTH - searchTerm.length !== 1 ? 's' : ''} to search
+            </p>
+          )}
         </div>
 
         <div>
