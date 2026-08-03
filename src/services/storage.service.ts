@@ -81,6 +81,19 @@ export class StorageService {
     return user.id;
   }
 
+  /**
+   * Escape characters that are meaningful to PostgREST's filter grammar.
+   *
+   * A raw search term containing , ( ) . or " is otherwise parsed as part of an
+   * .or() expression rather than as a value, so `a,b` silently becomes two
+   * filter clauses and `(` breaks the query outright. This is not SQL injection
+   * - PostgREST parameterises to SQL and RLS still applies - but it returns
+   * wrong results, and it is trivially avoided.
+   */
+  private static escapePostgrestValue(value: string): string {
+    return value.replace(/[,()."\\]/g, ' ').trim();
+  }
+
   // Helper to calculate date range
   private static getDateRangeFilter(dateRange: HistoryDateRangeFilter): { start: Date; end: Date } | null {
     const now = new Date();
@@ -214,8 +227,13 @@ export class StorageService {
       }
 
       // Add search filter if provided
+      // Escaped: a raw term containing , ( ) . or " is otherwise parsed as part
+      // of the .or() filter grammar rather than as a value
       if (searchTerm && searchTerm.trim()) {
-        query = query.or(`name.ilike.%${searchTerm}%,sku.ilike.%${searchTerm}%,brand.ilike.%${searchTerm}%`);
+        const term = this.escapePostgrestValue(searchTerm);
+        if (term) {
+          query = query.or(`name.ilike.%${term}%,sku.ilike.%${term}%,brand.ilike.%${term}%`);
+        }
       }
 
       // Add pagination if page is provided
@@ -267,9 +285,12 @@ export class StorageService {
         query = query.eq('category_id', categoryId);
       }
 
-      // Add search filter if provided
+      // Add search filter if provided (escaped - see getProducts)
       if (searchTerm && searchTerm.trim()) {
-        query = query.or(`name.ilike.%${searchTerm}%,sku.ilike.%${searchTerm}%,brand.ilike.%${searchTerm}%`);
+        const term = this.escapePostgrestValue(searchTerm);
+        if (term) {
+          query = query.or(`name.ilike.%${term}%,sku.ilike.%${term}%,brand.ilike.%${term}%`);
+        }
       }
 
       const { count, error } = await query;
@@ -961,18 +982,6 @@ export class StorageService {
   // ============================================================
   // Fire Extinguishers
   // ============================================================
-
-  /**
-   * Escape characters that are meaningful to PostgREST's filter grammar.
-   *
-   * A raw search term containing , ( ) . or " would otherwise be parsed as part
-   * of the .or() expression rather than as a value, corrupting the query. This
-   * is not SQL injection - PostgREST parameterises to SQL and RLS still applies
-   * - but it produces wrong results and is trivially avoided.
-   */
-  private static escapePostgrestValue(value: string): string {
-    return value.replace(/[,()."\\]/g, ' ').trim();
-  }
 
   private static mapFireExtinguisher(item: FireExtinguisherRow): FireExtinguisher {
     return {

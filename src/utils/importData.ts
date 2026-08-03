@@ -57,6 +57,78 @@ export const parseCSV = (csvText: string): string[][] => {
   return lines;
 };
 
+/** Fields a CSV column can map to. */
+type ProductField =
+  | 'name'
+  | 'sku'
+  | 'quantity'
+  | 'minStock'
+  | 'price'
+  | 'category'
+  | 'location'
+  | 'description'
+  | 'brand'
+  | 'specification'
+  | 'unitOfMeasure';
+
+/**
+ * Header aliases, so columns are matched by NAME rather than by position.
+ *
+ * This exists because export and import disagreed on column order: exportToCSV
+ * writes Category first (Category, Name, SKU, ...) while this importer read
+ * positionally starting at Name, so exporting and re-importing shifted every
+ * field - Category landed in name, Name in sku, SKU in quantity. Matching on
+ * the header fixes the round trip and tolerates either order.
+ */
+const PRODUCT_HEADER_ALIASES: Record<string, ProductField> = {
+  NAME: 'name',
+  'PRODUCT NAME': 'name',
+  SKU: 'sku',
+  CODE: 'sku',
+  'PRODUCT CODE': 'sku',
+  QUANTITY: 'quantity',
+  QTY: 'quantity',
+  'MIN STOCK': 'minStock',
+  MINSTOCK: 'minStock',
+  'MINIMUM STOCK': 'minStock',
+  'MIN QTY': 'minStock',
+  PRICE: 'price',
+  'UNIT PRICE': 'price',
+  CATEGORY: 'category',
+  LOCATION: 'location',
+  DESCRIPTION: 'description',
+  BRAND: 'brand',
+  SPECIFICATION: 'specification',
+  SPEC: 'specification',
+  'UNIT OF MEASURE': 'unitOfMeasure',
+  UOM: 'unitOfMeasure',
+  UNIT: 'unitOfMeasure',
+};
+
+/**
+ * The order this importer used before header matching existed. Retained as a
+ * fallback so any file that previously imported successfully still does - a
+ * file whose headers are unrecognised (or absent) is read positionally exactly
+ * as before.
+ */
+const LEGACY_COLUMN_ORDER: ProductField[] = [
+  'name',
+  'sku',
+  'quantity',
+  'minStock',
+  'price',
+  'category',
+  'location',
+  'description',
+  'brand',
+  'specification',
+  'unitOfMeasure',
+];
+
+/** trim -> collapse internal whitespace -> uppercase */
+const normaliseHeader = (header: string): string =>
+  header.replace(/\s+/g, ' ').trim().toUpperCase();
+
 export const importFromCSV = async (
   file: File,
   categories: Category[],
@@ -79,6 +151,23 @@ export const importFromCSV = async (
       return result;
     }
 
+    // Map columns by header name, falling back to the legacy fixed order
+    const columnMap = new Map<number, ProductField>();
+    rows[0].forEach((header, index) => {
+      const field = PRODUCT_HEADER_ALIASES[normaliseHeader(header)];
+      if (field) {
+        columnMap.set(index, field);
+      }
+    });
+
+    const mappedFields = new Set(columnMap.values());
+    const headerMode = mappedFields.has('name') && mappedFields.has('sku');
+
+    if (!headerMode) {
+      columnMap.clear();
+      LEGACY_COLUMN_ORDER.forEach((field, index) => columnMap.set(index, field));
+    }
+
     // Skip header row
     const dataRows = rows.slice(1);
 
@@ -91,13 +180,31 @@ export const importFromCSV = async (
       const rowNumber = i + 2; // +2 because we skip header and arrays are 0-indexed
 
       try {
-        // Validate required fields
-        if (row.length < 11) {
+        // Only the positional fallback depends on every column being present;
+        // in header mode a missing optional column is simply absent.
+        if (!headerMode && row.length < 11) {
           result.errors.push(`Row ${rowNumber}: Insufficient columns`);
           continue;
         }
 
-        const [name, sku, quantity, minStock, price, category, location, description, brand, specification, unitOfMeasure] = row;
+        const values: Partial<Record<ProductField, string>> = {};
+        columnMap.forEach((field, index) => {
+          values[field] = row[index] ?? '';
+        });
+
+        const {
+          name = '',
+          sku = '',
+          quantity = '',
+          minStock = '',
+          price = '',
+          category = '',
+          location = '',
+          description = '',
+          brand = '',
+          specification = '',
+          unitOfMeasure = '',
+        } = values;
 
         if (!name || !sku) {
           result.errors.push(`Row ${rowNumber}: Name and SKU are required`);

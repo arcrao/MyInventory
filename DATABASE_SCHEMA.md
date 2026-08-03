@@ -725,3 +725,38 @@ SELECT tablename, policyname, cmd FROM pg_policies
 SELECT proname, prosecdef, proconfig FROM pg_proc
  WHERE proname LIKE '%fire_extinguisher%';
 ```
+
+---
+
+## Migration: Harden search_path on SECURITY DEFINER functions
+
+Run `migration_harden_function_search_path.sql` in the Supabase SQL Editor.
+
+A `SECURITY DEFINER` function runs with its owner's privileges. If it does not
+pin its own `search_path`, unqualified names inside the body resolve against the
+**caller's** `search_path` — so a caller who can create objects in an earlier
+schema can shadow a name the function depends on and have their code run with
+the owner's rights. This is what Supabase's linter reports as
+`function_search_path_mutable`.
+
+`is_admin()`, `is_super_admin()` and the product/stock RPCs were all created
+without the setting. The migration attaches it with `ALTER FUNCTION`, which does
+**not** touch any function body — deliberately, since re-declaring the bodies
+here would risk reverting a later fix such as the `ur.role` disambiguation in
+`migration_fix_is_admin_ambiguous_column.sql`.
+
+The migration discovers the functions rather than hardcoding signatures, so it
+is safe to re-run and automatically skips ones that already pin a `search_path`
+(the fire extinguisher functions set it at creation). Functions running with
+INVOKER rights are not targeted — they already run as the caller, so a mutable
+`search_path` grants nothing.
+
+Verify (no row should have a NULL `proconfig`):
+
+```sql
+SELECT p.proname, p.prosecdef AS security_definer, p.proconfig
+  FROM pg_proc p
+  JOIN pg_namespace n ON n.oid = p.pronamespace
+ WHERE n.nspname = 'public' AND p.prosecdef
+ ORDER BY p.proname;
+```
