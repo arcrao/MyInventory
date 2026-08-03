@@ -1,5 +1,75 @@
-import { Product, Category, Location, HistoryEntry, HistoryActionFilter, HistoryDateRangeFilter } from '../types';
+import {
+  Product,
+  Category,
+  Location,
+  HistoryEntry,
+  HistoryActionFilter,
+  HistoryDateRangeFilter,
+  FireExtinguisher,
+  FireExtinguisherFormData,
+  FireExtinguisherFilters,
+  FireExtinguisherSort,
+  FireExtinguisherSummary,
+  FireExtinguisherHistoryEntry,
+  FireExtinguisherImportRow,
+} from '../types';
 import { supabase } from '../lib/supabase';
+
+/**
+ * Shapes of the fire extinguisher rows as PostgREST returns them.
+ *
+ * Declared explicitly because there is no generated Supabase types file. The
+ * older product methods type their rows as `any`; these are stated properly so
+ * the snake_case -> camelCase mapping below stays honest.
+ */
+interface FireExtinguisherRow {
+  id: number;
+  area: string | null;
+  location: string | null;
+  extinguisher_no: string | null;
+  unique_key: string | null;
+  type: string | null;
+  capacity: string | null;
+  pressure: string | null;
+  inspection_tag: string | null;
+  safety_pin: string | null;
+  refilled_date: string | null;
+  refilling_due_date: string | null;
+  remarks: string | null;
+  source_sheet: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface FireExtinguisherHistoryRow {
+  id: number;
+  extinguisher_id: number | null;
+  extinguisher_key: string | null;
+  action: FireExtinguisherHistoryEntry['action'];
+  changes: string | null;
+  notes: string | null;
+  created_at: string;
+}
+
+/**
+ * The subset of the PostgREST query builder the extinguisher helpers below use.
+ *
+ * Threading the builder's own generics through these helpers adds noise without
+ * adding safety, and `any` would silently accept a misspelt method. This states
+ * exactly what is called and nothing more.
+ */
+interface ExtinguisherQuery {
+  eq(column: string, value: string): ExtinguisherQuery;
+  or(filters: string): ExtinguisherQuery;
+  not(column: string, operator: string, value: null): ExtinguisherQuery;
+  lt(column: string, value: string): ExtinguisherQuery;
+  gt(column: string, value: string): ExtinguisherQuery;
+  gte(column: string, value: string): ExtinguisherQuery;
+  lte(column: string, value: string): ExtinguisherQuery;
+  is(column: string, value: null): ExtinguisherQuery;
+  order(column: string, options: { ascending: boolean; nullsFirst?: boolean }): ExtinguisherQuery;
+  range(from: number, to: number): ExtinguisherQuery;
+}
 
 export class StorageService {
   // Get current user ID
@@ -885,6 +955,367 @@ export class StorageService {
     } catch (error) {
       console.error('Error in stock-out transaction:', error);
       throw error;
+    }
+  }
+
+  // ============================================================
+  // Fire Extinguishers
+  // ============================================================
+
+  /**
+   * Escape characters that are meaningful to PostgREST's filter grammar.
+   *
+   * A raw search term containing , ( ) . or " would otherwise be parsed as part
+   * of the .or() expression rather than as a value, corrupting the query. This
+   * is not SQL injection - PostgREST parameterises to SQL and RLS still applies
+   * - but it produces wrong results and is trivially avoided.
+   */
+  private static escapePostgrestValue(value: string): string {
+    return value.replace(/[,()."\\]/g, ' ').trim();
+  }
+
+  private static mapFireExtinguisher(item: FireExtinguisherRow): FireExtinguisher {
+    return {
+      id: item.id,
+      area: item.area || '',
+      location: item.location || '',
+      extinguisherNo: item.extinguisher_no || '',
+      uniqueKey: item.unique_key || '',
+      type: item.type || '',
+      capacity: item.capacity || '',
+      pressure: item.pressure || '',
+      inspectionTag: item.inspection_tag || '',
+      safetyPin: item.safety_pin || '',
+      refilledDate: item.refilled_date || null,
+      refillingDueDate: item.refilling_due_date || null,
+      remarks: item.remarks || '',
+      sourceSheet: item.source_sheet || '',
+      createdAt: item.created_at,
+      updatedAt: item.updated_at,
+    };
+  }
+
+  /**
+   * Apply the shared filter set to a fire_extinguishers query.
+   *
+   * `status` is a date-range filter over refilling_due_date rather than a
+   * stored column. The caller passes explicit date bounds (computed once on the
+   * client) so the badge shown in the table, these filtered rows and the
+   * summary counts always agree - deriving "today" independently on each side
+   * drifts across timezones and midnight.
+   */
+  private static applyFireExtinguisherFilters<T>(
+    query: T,
+    filters: FireExtinguisherFilters,
+    today: string,
+    dueSoonDate: string
+  ): T {
+    let q = query as unknown as ExtinguisherQuery;
+
+    if (filters.area) {
+      q = q.eq('area', filters.area);
+    }
+
+    if (filters.type) {
+      q = q.eq('type', filters.type);
+    }
+
+    if (filters.searchTerm && filters.searchTerm.trim()) {
+      const term = this.escapePostgrestValue(filters.searchTerm);
+      if (term) {
+        q = q.or(
+          `area.ilike.%${term}%,location.ilike.%${term}%,extinguisher_no.ilike.%${term}%,remarks.ilike.%${term}%`
+        );
+      }
+    }
+
+    switch (filters.status) {
+      case 'overdue':
+        q = q.not('refilling_due_date', 'is', null).lt('refilling_due_date', today);
+        break;
+      case 'due_soon':
+        q = q
+          .not('refilling_due_date', 'is', null)
+          .gte('refilling_due_date', today)
+          .lte('refilling_due_date', dueSoonDate);
+        break;
+      case 'ok':
+        q = q.not('refilling_due_date', 'is', null).gt('refilling_due_date', dueSoonDate);
+        break;
+      case 'no_date':
+        q = q.is('refilling_due_date', null);
+        break;
+      case 'all':
+      default:
+        break;
+    }
+
+    return q as unknown as T;
+  }
+
+  private static applyFireExtinguisherSort<T>(query: T, sort: FireExtinguisherSort): T {
+    // nullsFirst: false keeps undated records at the bottom rather than letting
+    // them squat at the top of a due-date sort.
+    const q = (query as unknown as ExtinguisherQuery).order(sort.field, {
+      ascending: sort.ascending,
+      nullsFirst: false,
+    });
+    // Stable tiebreaker so paging never repeats or drops a row
+    return q
+      .order('area', { ascending: true })
+      .order('location', { ascending: true })
+      .order('extinguisher_no', { ascending: true }) as unknown as T;
+  }
+
+  static async getFireExtinguishers(
+    page: number | undefined,
+    pageSize: number = 50,
+    filters: FireExtinguisherFilters,
+    sort: FireExtinguisherSort,
+    today: string,
+    dueSoonDate: string
+  ): Promise<FireExtinguisher[]> {
+    try {
+      console.log('[StorageService] Fetching fire extinguishers, page:', page, 'filters:', filters);
+      let query = supabase.from('fire_extinguishers').select('*');
+
+      query = this.applyFireExtinguisherFilters(query, filters, today, dueSoonDate);
+      query = this.applyFireExtinguisherSort(query, sort);
+
+      if (page !== undefined && page >= 0) {
+        const from = page * pageSize;
+        const to = from + pageSize - 1;
+        query = query.range(from, to);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('[StorageService] Error fetching fire extinguishers:', error);
+        throw error;
+      }
+
+      console.log('[StorageService] Fetched fire extinguishers:', data?.length || 0, 'items');
+      return (data || []).map(item => this.mapFireExtinguisher(item));
+    } catch (error) {
+      console.error('Error getting fire extinguishers:', error);
+      return [];
+    }
+  }
+
+  static async getFireExtinguishersCount(
+    filters: FireExtinguisherFilters,
+    today: string,
+    dueSoonDate: string
+  ): Promise<number> {
+    try {
+      let query = supabase.from('fire_extinguishers').select('*', { count: 'exact', head: true });
+      query = this.applyFireExtinguisherFilters(query, filters, today, dueSoonDate);
+
+      const { count, error } = await query;
+
+      if (error) throw error;
+      return count || 0;
+    } catch (error) {
+      console.error('Error getting fire extinguishers count:', error);
+      return 0;
+    }
+  }
+
+  /**
+   * All rows matching the current filters, unpaginated - for CSV export.
+   * Honours the active sort so the exported file matches what is on screen.
+   */
+  static async getAllFireExtinguishers(
+    filters: FireExtinguisherFilters,
+    sort: FireExtinguisherSort,
+    today: string,
+    dueSoonDate: string
+  ): Promise<FireExtinguisher[]> {
+    try {
+      let query = supabase.from('fire_extinguishers').select('*');
+      query = this.applyFireExtinguisherFilters(query, filters, today, dueSoonDate);
+      query = this.applyFireExtinguisherSort(query, sort);
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+      return (data || []).map(item => this.mapFireExtinguisher(item));
+    } catch (error) {
+      console.error('Error getting all fire extinguishers:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Counts for the stat cards. Covers the whole register (narrowed by the
+   * active search/area/type), not just the loaded page.
+   */
+  static async getFireExtinguisherSummary(
+    filters: FireExtinguisherFilters,
+    today: string,
+    dueSoonDate: string
+  ): Promise<FireExtinguisherSummary> {
+    const empty: FireExtinguisherSummary = { total: 0, overdue: 0, dueSoon: 0, ok: 0, noDate: 0 };
+    try {
+      const { data, error } = await supabase.rpc('get_fire_extinguisher_summary', {
+        p_today: today,
+        p_due_soon_date: dueSoonDate,
+        p_search: filters.searchTerm || null,
+        p_area: filters.area || null,
+        p_type: filters.type || null,
+      });
+
+      if (error) throw error;
+
+      return {
+        total: Number(data?.total) || 0,
+        overdue: Number(data?.overdue) || 0,
+        dueSoon: Number(data?.dueSoon) || 0,
+        ok: Number(data?.ok) || 0,
+        noDate: Number(data?.noDate) || 0,
+      };
+    } catch (error) {
+      console.error('Error getting fire extinguisher summary:', error);
+      return empty;
+    }
+  }
+
+  /** Distinct areas, for the Area filter dropdown. */
+  static async getFireExtinguisherAreas(): Promise<string[]> {
+    try {
+      const { data, error } = await supabase.rpc('get_fire_extinguisher_areas');
+
+      if (error) throw error;
+      const rows = (data || []) as { area: string }[];
+      return rows.map(row => row.area).filter(Boolean);
+    } catch (error) {
+      console.error('Error getting fire extinguisher areas:', error);
+      return [];
+    }
+  }
+
+  static async addFireExtinguisher(formData: FireExtinguisherFormData): Promise<void> {
+    try {
+      const { error } = await supabase.rpc('add_fire_extinguisher_with_history', {
+        p_area: formData.area,
+        p_location: formData.location,
+        p_extinguisher_no: formData.extinguisherNo,
+        p_type: formData.type || null,
+        p_capacity: formData.capacity || null,
+        p_pressure: formData.pressure || null,
+        p_inspection_tag: formData.inspectionTag || null,
+        p_safety_pin: formData.safetyPin || null,
+        p_refilled_date: formData.refilledDate || null,
+        p_refilling_due_date: formData.refillingDueDate || null,
+        p_remarks: formData.remarks || null,
+        p_source_sheet: null,
+      });
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error adding fire extinguisher:', error);
+      throw error;
+    }
+  }
+
+  static async updateFireExtinguisher(id: number, formData: FireExtinguisherFormData): Promise<void> {
+    try {
+      const { error } = await supabase.rpc('update_fire_extinguisher_with_history', {
+        p_id: id,
+        p_area: formData.area,
+        p_location: formData.location,
+        p_extinguisher_no: formData.extinguisherNo,
+        p_type: formData.type || null,
+        p_capacity: formData.capacity || null,
+        p_pressure: formData.pressure || null,
+        p_inspection_tag: formData.inspectionTag || null,
+        p_safety_pin: formData.safetyPin || null,
+        p_refilled_date: formData.refilledDate || null,
+        p_refilling_due_date: formData.refillingDueDate || null,
+        p_remarks: formData.remarks || null,
+        p_source_sheet: null,
+      });
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error updating fire extinguisher:', error);
+      throw error;
+    }
+  }
+
+  static async deleteFireExtinguisher(id: number): Promise<void> {
+    try {
+      const { error } = await supabase.rpc('delete_fire_extinguisher_with_history', {
+        p_id: id,
+      });
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error deleting fire extinguisher:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Import path. Insert/update only - never deletes, so a row absent from an
+   * uploaded sheet is left untouched.
+   *
+   * Chunked to stay under the RPC's 500-row-per-call limit. Chunks are sent
+   * sequentially so a partial failure leaves a coherent, reportable state.
+   */
+  static async bulkUpsertFireExtinguishers(
+    rows: FireExtinguisherImportRow[]
+  ): Promise<{ inserted: number; updated: number; errors: string[] }> {
+    const CHUNK_SIZE = 500;
+    const result = { inserted: 0, updated: 0, errors: [] as string[] };
+
+    for (let i = 0; i < rows.length; i += CHUNK_SIZE) {
+      const chunk = rows.slice(i, i + CHUNK_SIZE);
+      const { data, error } = await supabase.rpc('bulk_upsert_fire_extinguishers', {
+        p_rows: chunk,
+      });
+
+      if (error) {
+        console.error('[StorageService] Bulk upsert failed:', error);
+        throw error;
+      }
+
+      result.inserted += Number(data?.inserted) || 0;
+      result.updated += Number(data?.updated) || 0;
+      if (Array.isArray(data?.errors)) {
+        result.errors.push(...data.errors);
+      }
+    }
+
+    return result;
+  }
+
+  static async getFireExtinguisherHistory(
+    extinguisherId: number
+  ): Promise<FireExtinguisherHistoryEntry[]> {
+    try {
+      const { data, error } = await supabase
+        .from('fire_extinguisher_history')
+        .select('*')
+        .eq('extinguisher_id', extinguisherId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      const rows = (data || []) as FireExtinguisherHistoryRow[];
+      return rows.map(item => ({
+        id: item.id,
+        extinguisherId: item.extinguisher_id,
+        extinguisherKey: item.extinguisher_key || '',
+        action: item.action,
+        changes: item.changes || '',
+        notes: item.notes || '',
+        createdAt: item.created_at,
+      }));
+    } catch (error) {
+      console.error('Error getting fire extinguisher history:', error);
+      return [];
     }
   }
 }

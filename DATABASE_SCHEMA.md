@@ -10,12 +10,18 @@ This document describes the database tables needed for the MyInventory applicati
 
 ## Tables Overview
 
-You need to create 5 tables in Supabase:
+You need to create 5 core tables in Supabase:
 1. `user_roles` - User role assignments (admin/user)
 2. `categories` - Product categories
 3. `locations` - Storage locations
 4. `products` - Inventory products
 5. `history` - Transaction history
+
+Plus 2 tables for the fire extinguisher register, created by
+`migration_add_fire_extinguishers.sql` (see
+[Migration: Fire Extinguishers Register](#migration-fire-extinguishers-register)):
+6. `fire_extinguishers` - Fire extinguisher register
+7. `fire_extinguisher_history` - Fire extinguisher audit trail
 
 ## SQL Schema
 
@@ -601,3 +607,121 @@ ALTER TABLE user_roles ADD CONSTRAINT user_roles_role_check
 - **super_admin**: Full access including product name editing
 - **admin**: Can create, edit (except names), and delete products and other data
 - **user**: Read-only access to all data
+
+---
+
+## Migration: Fire Extinguishers Register
+
+Run `migration_add_fire_extinguishers.sql` in the Supabase SQL Editor. It is
+purely additive — it contains no `ALTER TABLE` against any existing table and
+does not redefine `is_admin()` or `is_super_admin()`, so product, category,
+location and history behaviour is unaffected.
+
+### `fire_extinguishers`
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | `BIGSERIAL PRIMARY KEY` | |
+| `user_id` | `UUID NOT NULL` | FK to `auth.users` |
+| `area` | `TEXT NOT NULL` | e.g. `BLOCK 1` |
+| `location` | `TEXT NOT NULL` | e.g. `1 FLOOR` |
+| `extinguisher_no` | `TEXT NOT NULL` | text, so `A-12` and `3B` work as well as `1` |
+| `unique_key` | `TEXT GENERATED ALWAYS AS (...) STORED`, `UNIQUE` | composite ID, see below |
+| `type` | `TEXT` | `ABC`, `CO2`, ... |
+| `capacity` | `TEXT` | `4KG` — free text, units vary |
+| `pressure` | `TEXT` | `OK` / `NOT OK` / `MISSING` |
+| `inspection_tag` | `TEXT` | |
+| `safety_pin` | `TEXT` | |
+| `refilled_date` | `DATE` | nullable |
+| `refilling_due_date` | `DATE` | nullable; drives the Overdue / Expiring Soon status |
+| `remarks` | `TEXT` | |
+| `source_sheet` | `TEXT` | which uploaded sheet the row last came from |
+| `created_at`, `updated_at` | `TIMESTAMPTZ` | |
+
+**The composite unique ID.** An extinguisher is identified by its physical
+position, not a serial number, so records are keyed on **AREA + LOCATION +
+EXTINGUISHER NO**. `unique_key` is a stored generated column, which makes the
+database the single source of truth for that key and gives `ON CONFLICT` a real
+unique index to target:
+
+```sql
+unique_key TEXT GENERATED ALWAYS AS (
+  upper(btrim(regexp_replace(area,            '\s+', ' ', 'g'))) || '|' ||
+  upper(btrim(regexp_replace(location,        '\s+', ' ', 'g'))) || '|' ||
+  upper(btrim(regexp_replace(extinguisher_no, '\s+', ' ', 'g')))
+) STORED
+```
+
+Normalisation (collapse whitespace, trim, uppercase) means `BLOCK 1` / `1 FLOOR `
+/ `1` and `block 1` / ` 1  floor ` / `1` resolve to the same record, so
+re-importing a corrected sheet updates rows instead of duplicating them. The
+client mirrors this expression in `buildExtinguisherKey()`
+(`src/utils/fireExtinguisherImport.ts`) — if you change one, change both.
+
+### `fire_extinguisher_history`
+
+`id`, `user_id`, `extinguisher_id` (nullable, `ON DELETE SET NULL`),
+`extinguisher_key` (denormalised snapshot), `action`
+(`created` / `updated` / `deleted` / `imported`), `changes`, `notes`, `created_at`.
+
+Deleting an extinguisher preserves its history: `extinguisher_id` becomes NULL
+while `extinguisher_key` records which unit it described — the same technique
+`history.product_name` uses for products.
+
+### Security model
+
+Two independent layers, because `SECURITY DEFINER` bypasses RLS:
+
+1. RLS policies on the table, covering direct PostgREST calls from a browser
+2. An explicit role check as the first statement inside every RPC
+
+| Action | `fire_extinguishers` | `fire_extinguisher_history` |
+|---|---|---|
+| SELECT | any authenticated user | any authenticated user |
+| INSERT | `is_admin()` | `is_admin()` |
+| UPDATE | `is_admin()` | **no policy — denied** |
+| DELETE | `is_super_admin()` | **no policy — denied** |
+
+The audit trail is append-only **by construction**: with RLS enabled, the absence
+of UPDATE and DELETE policies means no client can rewrite or erase it. This
+mirrors the existing `history` table.
+
+`DELETE` on `fire_extinguishers` is deliberately stricter than INSERT/UPDATE,
+matching `migration_update_delete_policy_super_admin.sql` for products — a fire
+safety register is a compliance record.
+
+### Functions
+
+| Function | Rights | Purpose |
+|---|---|---|
+| `add_fire_extinguisher_with_history(...)` | `is_admin()` | Insert + log `created` |
+| `update_fire_extinguisher_with_history(...)` | `is_admin()` | Row-locked update + logged field diff |
+| `delete_fire_extinguisher_with_history(id)` | `is_super_admin()` | History written before the delete |
+| `bulk_upsert_fire_extinguishers(jsonb)` | `is_admin()` | Import path; insert/update only, never deletes |
+| `get_fire_extinguisher_summary(...)` | `STABLE`, invoker | Counts for the status cards |
+| `get_fire_extinguisher_areas()` | `STABLE`, invoker | Distinct areas for the filter dropdown |
+
+Every `SECURITY DEFINER` function above declares
+`SET search_path = public, pg_temp`, closing the definer-rights escalation vector
+that Supabase's linter flags as `function_search_path_mutable`. The read-only
+functions are left as `SECURITY INVOKER` so RLS applies to the caller normally.
+
+Uploaded sheet content is untrusted: it reaches the database only as a
+parameterised JSONB argument to `bulk_upsert_fire_extinguishers`, never
+concatenated into SQL, and each row is re-validated server-side rather than
+trusting the client's parsing. Batches are capped at 500 rows per call.
+
+### Verifying
+
+```sql
+SELECT tablename, rowsecurity FROM pg_tables
+ WHERE tablename LIKE 'fire_extinguisher%';
+
+-- fire_extinguisher_history must show SELECT and INSERT only
+SELECT tablename, policyname, cmd FROM pg_policies
+ WHERE tablename LIKE 'fire_extinguisher%' ORDER BY tablename, cmd;
+
+-- prosecdef = definer rights, proconfig should show the search_path
+SELECT proname, prosecdef, proconfig FROM pg_proc
+ WHERE proname LIKE '%fire_extinguisher%';
+```

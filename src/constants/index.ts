@@ -34,3 +34,55 @@ export const DEFAULT_PRODUCT_FORM_DATA = {
   specification: '',
   unitOfMeasure: 'pcs',
 };
+
+// ============================================================
+// Fire Extinguishers
+// ============================================================
+
+/**
+ * How many days ahead counts as "Expiring Soon".
+ * Single source of truth: the status badge, the server-side status filter and
+ * the summary card counts all derive from this, so they cannot disagree.
+ */
+export const DUE_SOON_DAYS = 30;
+
+/** Suggestions only - the inputs stay free text so an unexpected value in an
+ *  uploaded sheet is never rejected. */
+export const EXTINGUISHER_TYPES = [
+  'ABC',
+  'CO2',
+  'DCP',
+  'FOAM',
+  'WATER',
+  'CLEAN AGENT',
+  'K-TYPE',
+] as const;
+
+export const EXTINGUISHER_CAPACITIES = [
+  '1KG',
+  '2KG',
+  '4KG',
+  '5KG',
+  '6KG',
+  '9KG',
+  '10KG',
+  '2LTR',
+  '6LTR',
+  '9LTR',
+] as const;
+
+export const EXTINGUISHER_CONDITIONS = ['OK', 'NOT OK', 'MISSING'] as const;
+
+export const DEFAULT_EXTINGUISHER_FORM_DATA = {
+  area: '',
+  location: '',
+  extinguisherNo: '',
+  type: 'ABC',
+  capacity: '4KG',
+  pressure: 'OK',
+  inspectionTag: 'OK',
+  safetyPin: 'OK',
+  refilledDate: '',
+  refillingDueDate: '',
+  remarks: '',
+};

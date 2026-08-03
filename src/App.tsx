@@ -9,12 +9,14 @@ import { HistoryView } from './components/History/HistoryView';
 import { ProductTimelineReport } from './components/History/ProductTimelineReport';
 import { CurrentStockReport } from './components/History/CurrentStockReport';
 import { SettingsView } from './components/Settings/SettingsView';
+import { FireExtinguishersList } from './components/FireExtinguishers/FireExtinguishersList';
 import { AuthForm } from './components/Auth/AuthForm';
 import { useAuth } from './contexts/AuthContext';
 import { useProducts } from './hooks/useProducts';
 import { useCategories } from './hooks/useCategories';
 import { useLocations } from './hooks/useLocations';
 import { useHistory } from './hooks/useHistory';
+import { useFireExtinguishers } from './hooks/useFireExtinguishers';
 import { Product, TabType } from './types';
 
 // Separate component for authenticated app to ensure clean remount on auth changes
@@ -55,6 +57,25 @@ const AuthenticatedApp: React.FC<{ user: any }> = ({ user }) => {
   } = useProducts(user);
   const { categories, addCategory, deleteCategory } = useCategories(user);
   const { locations, addLocation, deleteLocation } = useLocations(user);
+  const {
+    extinguishers,
+    summary: extinguisherSummary,
+    areas: extinguisherAreas,
+    addExtinguisher,
+    updateExtinguisher,
+    deleteExtinguisher,
+    currentPage: extinguisherPage,
+    totalPages: extinguisherTotalPages,
+    totalCount: extinguisherTotalCount,
+    pageSize: extinguisherPageSize,
+    loading: extinguishersLoading,
+    goToPage: goToExtinguisherPage,
+    filters: extinguisherFilters,
+    applyFilters: applyExtinguisherFilters,
+    sort: extinguisherSort,
+    applySort: applyExtinguisherSort,
+    reloadExtinguishers,
+  } = useFireExtinguishers(user);
 
   const handleAddProduct = () => {
     setEditingProduct(null);
@@ -135,6 +156,14 @@ const AuthenticatedApp: React.FC<{ user: any }> = ({ user }) => {
             }`}
           >
             Products
+          </button>
+          <button
+            onClick={() => setActiveTab('extinguishers')}
+            className={`px-4 py-2.5 rounded whitespace-nowrap text-sm font-medium min-h-[44px] transition-colors ${
+              activeTab === 'extinguishers' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            Fire Extinguishers
           </button>
           <button
             onClick={() => setActiveTab('history')}
@@ -222,6 +251,27 @@ const AuthenticatedApp: React.FC<{ user: any }> = ({ user }) => {
             {historyViewType === 'timeline' && <ProductTimelineReport />}
             {historyViewType === 'current_stock' && <CurrentStockReport />}
           </div>
+        )}
+        {activeTab === 'extinguishers' && (
+          <FireExtinguishersList
+            extinguishers={extinguishers}
+            summary={extinguisherSummary}
+            areas={extinguisherAreas}
+            filters={extinguisherFilters}
+            sort={extinguisherSort}
+            currentPage={extinguisherPage}
+            totalPages={extinguisherTotalPages}
+            totalCount={extinguisherTotalCount}
+            pageSize={extinguisherPageSize}
+            loading={extinguishersLoading}
+            onFilterChange={applyExtinguisherFilters}
+            onSortChange={applyExtinguisherSort}
+            onPageChange={goToExtinguisherPage}
+            onAdd={addExtinguisher}
+            onUpdate={updateExtinguisher}
+            onDelete={deleteExtinguisher}
+            onReload={reloadExtinguishers}
+          />
         )}
         {activeTab === 'settings' && (
           <SettingsView
