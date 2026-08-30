@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import { Plus, Edit2, Trash2, QrCode, Search } from 'lucide-react';
 import { GymMember, GymMemberFormData } from '../../types';
-import { useAuth } from '../../contexts/AuthContext';
 import { GymMemberForm } from './GymMemberForm';
 import { MemberQRModal } from './MemberQRModal';
 
 interface GymMembersListProps {
   members: GymMember[];
   searchTerm: string;
+  isGymAdmin: boolean;
+  gymRoleLoading: boolean;
   onSearch: (term: string) => void;
   onAddMember: (data: GymMemberFormData) => Promise<GymMember>;
   onUpdateMember: (id: number, data: GymMemberFormData) => Promise<void>;
@@ -17,12 +18,13 @@ interface GymMembersListProps {
 export const GymMembersList: React.FC<GymMembersListProps> = ({
   members,
   searchTerm,
+  isGymAdmin,
+  gymRoleLoading,
   onSearch,
   onAddMember,
   onUpdateMember,
   onDeleteMember,
 }) => {
-  const { isAdmin, loading: adminLoading } = useAuth();
   const [showForm, setShowForm] = useState(false);
   const [editingMember, setEditingMember] = useState<GymMember | null>(null);
   const [qrMember, setQrMember] = useState<GymMember | null>(null);
@@ -67,7 +69,7 @@ export const GymMembersList: React.FC<GymMembersListProps> = ({
     <div>
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
         <h2 className="text-xl sm:text-2xl font-bold">Gym Members</h2>
-        {!adminLoading && isAdmin && (
+        {!gymRoleLoading && isGymAdmin && (
           <button
             onClick={handleAdd}
             className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 flex items-center gap-2 text-sm min-h-[44px] font-medium"
@@ -119,7 +121,7 @@ export const GymMembersList: React.FC<GymMembersListProps> = ({
                   <QrCode className="w-4 h-4" />
                   QR Code
                 </button>
-                {!adminLoading && isAdmin && (
+                {!gymRoleLoading && isGymAdmin && (
                   <>
                     <button
                       onClick={() => handleEdit(member)}
@@ -177,7 +179,7 @@ export const GymMembersList: React.FC<GymMembersListProps> = ({
                     >
                       <QrCode className="w-4 h-4" />
                     </button>
-                    {!adminLoading && isAdmin && (
+                    {!gymRoleLoading && isGymAdmin && (
                       <>
                         <button
                           onClick={() => handleEdit(member)}

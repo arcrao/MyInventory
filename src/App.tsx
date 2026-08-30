@@ -18,6 +18,7 @@ import { useLocations } from './hooks/useLocations';
 import { useHistory } from './hooks/useHistory';
 import { useGymMembers } from './hooks/useGymMembers';
 import { useGymCheckins } from './hooks/useGymCheckins';
+import { useGymRole } from './hooks/useGymRole';
 import { Product, TabType } from './types';
 
 // Separate component for authenticated app to ensure clean remount on auth changes
@@ -58,6 +59,10 @@ const AuthenticatedApp: React.FC<{ user: any }> = ({ user }) => {
   } = useProducts(user);
   const { categories, addCategory, deleteCategory } = useCategories(user);
   const { locations, addLocation, deleteLocation } = useLocations(user);
+  const { isGymStaff, isGymAdmin, loading: gymRoleLoading } = useGymRole(user);
+  // Gym data is completely separate from Products access - only fetch it
+  // once we know the signed-in user actually has Gym access.
+  const gymUser = isGymStaff ? user : null;
   const {
     members: gymMembers,
     searchTerm: gymMembersSearchTerm,
@@ -65,7 +70,7 @@ const AuthenticatedApp: React.FC<{ user: any }> = ({ user }) => {
     addMember: addGymMember,
     updateMember: updateGymMember,
     deleteMember: deleteGymMember,
-  } = useGymMembers(user);
+  } = useGymMembers(gymUser);
   const {
     checkins: gymCheckins,
     activeCheckins: gymActiveCheckins,
@@ -76,7 +81,7 @@ const AuthenticatedApp: React.FC<{ user: any }> = ({ user }) => {
     goToPage: goToGymCheckinsPage,
     applySearch: applyGymCheckinsSearch,
     reloadCheckins: reloadGymCheckins,
-  } = useGymCheckins(user);
+  } = useGymCheckins(gymUser);
 
   const handleAddProduct = () => {
     setEditingProduct(null);
@@ -166,14 +171,16 @@ const AuthenticatedApp: React.FC<{ user: any }> = ({ user }) => {
           >
             History
           </button>
-          <button
-            onClick={() => setActiveTab('gym')}
-            className={`px-4 py-2.5 rounded whitespace-nowrap text-sm font-medium min-h-[44px] transition-colors ${
-              activeTab === 'gym' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
-            }`}
-          >
-            Gym
-          </button>
+          {!gymRoleLoading && isGymStaff && (
+            <button
+              onClick={() => setActiveTab('gym')}
+              className={`px-4 py-2.5 rounded whitespace-nowrap text-sm font-medium min-h-[44px] transition-colors ${
+                activeTab === 'gym' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              Gym
+            </button>
+          )}
           <button
             onClick={() => setActiveTab('settings')}
             className={`px-4 py-2.5 rounded whitespace-nowrap text-sm font-medium min-h-[44px] transition-colors ${
@@ -253,8 +260,10 @@ const AuthenticatedApp: React.FC<{ user: any }> = ({ user }) => {
             {historyViewType === 'current_stock' && <CurrentStockReport />}
           </div>
         )}
-        {activeTab === 'gym' && (
+        {activeTab === 'gym' && isGymStaff && (
           <GymView
+            isGymAdmin={isGymAdmin}
+            gymRoleLoading={gymRoleLoading}
             members={gymMembers}
             membersSearchTerm={gymMembersSearchTerm}
             onSearchMembers={applyGymMembersSearch}

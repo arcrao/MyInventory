@@ -3,10 +3,13 @@ import { GymMember, GymMemberFormData, GymCheckin } from '../../types';
 import { CheckInScanner } from './CheckInScanner';
 import { GymMembersList } from './GymMembersList';
 import { GymCheckinLog } from './GymCheckinLog';
+import { GymAccessManager } from './GymAccessManager';
 
-type GymSubTab = 'scan' | 'members' | 'log';
+type GymSubTab = 'scan' | 'members' | 'log' | 'access';
 
 interface GymViewProps {
+  isGymAdmin: boolean;
+  gymRoleLoading: boolean;
   members: GymMember[];
   membersSearchTerm: string;
   onSearchMembers: (term: string) => void;
@@ -25,6 +28,8 @@ interface GymViewProps {
 }
 
 export const GymView: React.FC<GymViewProps> = ({
+  isGymAdmin,
+  gymRoleLoading,
   members,
   membersSearchTerm,
   onSearchMembers,
@@ -43,14 +48,17 @@ export const GymView: React.FC<GymViewProps> = ({
 }) => {
   const [subTab, setSubTab] = useState<GymSubTab>('scan');
 
+  const tabs: { key: GymSubTab; label: string }[] = [
+    { key: 'scan', label: 'Scan Check-In/Out' },
+    { key: 'members', label: 'Members' },
+    { key: 'log', label: 'Log' },
+    ...(isGymAdmin ? [{ key: 'access' as GymSubTab, label: 'Access' }] : []),
+  ];
+
   return (
     <div>
       <div className="flex gap-2 mb-4 flex-wrap">
-        {([
-          { key: 'scan', label: 'Scan Check-In/Out' },
-          { key: 'members', label: 'Members' },
-          { key: 'log', label: 'Log' },
-        ] as { key: GymSubTab; label: string }[]).map(({ key, label }) => (
+        {tabs.map(({ key, label }) => (
           <button
             key={key}
             onClick={() => setSubTab(key)}
@@ -73,6 +81,8 @@ export const GymView: React.FC<GymViewProps> = ({
         <GymMembersList
           members={members}
           searchTerm={membersSearchTerm}
+          isGymAdmin={isGymAdmin}
+          gymRoleLoading={gymRoleLoading}
           onSearch={onSearchMembers}
           onAddMember={onAddMember}
           onUpdateMember={onUpdateMember}
@@ -91,6 +101,8 @@ export const GymView: React.FC<GymViewProps> = ({
           onPageChange={onCheckinsPageChange}
         />
       )}
+
+      {subTab === 'access' && isGymAdmin && <GymAccessManager />}
     </div>
   );
 };

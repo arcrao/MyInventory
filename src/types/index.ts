@@ -87,6 +87,15 @@ export interface GymScanResult {
   timestamp: string;
 }
 
+export type GymRole = 'gym_admin' | 'gym_staff';
+
+export interface GymRoleEntry {
+  userId: string;
+  email: string;
+  role: GymRole;
+  createdAt: string;
+}
+
 export interface ProductFormData {
   name: string;
   sku: string;

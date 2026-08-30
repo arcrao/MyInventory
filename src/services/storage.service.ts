@@ -1,4 +1,4 @@
-import { Product, Category, Location, HistoryEntry, HistoryActionFilter, HistoryDateRangeFilter, GymMember, GymMemberFormData, GymCheckin, GymScanResult } from '../types';
+import { Product, Category, Location, HistoryEntry, HistoryActionFilter, HistoryDateRangeFilter, GymMember, GymMemberFormData, GymCheckin, GymScanResult, GymRole, GymRoleEntry } from '../types';
 import { supabase } from '../lib/supabase';
 
 export class StorageService {
@@ -1080,6 +1080,71 @@ export class StorageService {
       return data;
     } catch (error) {
       console.error('Error in gym scan transaction:', error);
+      throw error;
+    }
+  }
+
+  // Gym Access (gym_roles) - independent of Products' user_roles
+  static async getMyGymRole(): Promise<GymRole | null> {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return null;
+
+      const { data, error } = await supabase
+        .from('gym_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (error) throw error;
+      return (data?.role as GymRole) || null;
+    } catch (error) {
+      console.error('Error checking gym role:', error);
+      return null;
+    }
+  }
+
+  static async listGymRoles(): Promise<GymRoleEntry[]> {
+    try {
+      const { data, error } = await supabase.rpc('gym_list_roles');
+
+      if (error) throw error;
+
+      return (data || []).map((item: { user_id: string; email: string; role: GymRole; created_at: string }) => ({
+        userId: item.user_id,
+        email: item.email,
+        role: item.role,
+        createdAt: item.created_at
+      }));
+    } catch (error) {
+      console.error('Error listing gym roles:', error);
+      throw error;
+    }
+  }
+
+  static async grantGymRole(email: string, role: GymRole): Promise<void> {
+    try {
+      const { error } = await supabase.rpc('gym_grant_role_by_email', {
+        p_email: email,
+        p_role: role
+      });
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error granting gym role:', error);
+      throw error;
+    }
+  }
+
+  static async revokeGymRole(userId: string): Promise<void> {
+    try {
+      const { error } = await supabase.rpc('gym_revoke_role', {
+        p_user_id: userId
+      });
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error revoking gym role:', error);
       throw error;
     }
   }
