@@ -48,7 +48,44 @@ export interface HistoryFilters {
   searchTerm: string;
 }
 
-export type TabType = 'dashboard' | 'products' | 'history' | 'settings';
+export type TabType = 'dashboard' | 'products' | 'history' | 'gym' | 'settings';
+
+export interface GymMember {
+  id: number;
+  memberCode: string;
+  name: string;
+  phone: string;
+  membershipType: string;
+  status: 'active' | 'inactive';
+  createdAt: string;
+}
+
+export interface GymMemberFormData {
+  name: string;
+  phone: string;
+  membershipType: string;
+  status: 'active' | 'inactive';
+}
+
+export interface GymCheckin {
+  id: number;
+  memberId: number | null;
+  memberName: string;
+  memberCode: string;
+  checkInTime: string;
+  checkOutTime: string | null;
+}
+
+export type GymScanAction = 'checked_in' | 'checked_out';
+
+export interface GymScanResult {
+  success: boolean;
+  action: GymScanAction;
+  memberId: number;
+  memberName: string;
+  memberCode: string;
+  timestamp: string;
+}
 
 export interface ProductFormData {
   name: string;

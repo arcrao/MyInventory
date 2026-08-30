@@ -9,12 +9,15 @@ import { HistoryView } from './components/History/HistoryView';
 import { ProductTimelineReport } from './components/History/ProductTimelineReport';
 import { CurrentStockReport } from './components/History/CurrentStockReport';
 import { SettingsView } from './components/Settings/SettingsView';
+import { GymView } from './components/Gym/GymView';
 import { AuthForm } from './components/Auth/AuthForm';
 import { useAuth } from './contexts/AuthContext';
 import { useProducts } from './hooks/useProducts';
 import { useCategories } from './hooks/useCategories';
 import { useLocations } from './hooks/useLocations';
 import { useHistory } from './hooks/useHistory';
+import { useGymMembers } from './hooks/useGymMembers';
+import { useGymCheckins } from './hooks/useGymCheckins';
 import { Product, TabType } from './types';
 
 // Separate component for authenticated app to ensure clean remount on auth changes
@@ -55,6 +58,25 @@ const AuthenticatedApp: React.FC<{ user: any }> = ({ user }) => {
   } = useProducts(user);
   const { categories, addCategory, deleteCategory } = useCategories(user);
   const { locations, addLocation, deleteLocation } = useLocations(user);
+  const {
+    members: gymMembers,
+    searchTerm: gymMembersSearchTerm,
+    applySearch: applyGymMembersSearch,
+    addMember: addGymMember,
+    updateMember: updateGymMember,
+    deleteMember: deleteGymMember,
+  } = useGymMembers(user);
+  const {
+    checkins: gymCheckins,
+    activeCheckins: gymActiveCheckins,
+    currentPage: gymCheckinsPage,
+    totalPages: gymCheckinsTotalPages,
+    totalCount: gymCheckinsTotalCount,
+    searchTerm: gymCheckinsSearchTerm,
+    goToPage: goToGymCheckinsPage,
+    applySearch: applyGymCheckinsSearch,
+    reloadCheckins: reloadGymCheckins,
+  } = useGymCheckins(user);
 
   const handleAddProduct = () => {
     setEditingProduct(null);
@@ -145,6 +167,14 @@ const AuthenticatedApp: React.FC<{ user: any }> = ({ user }) => {
             History
           </button>
           <button
+            onClick={() => setActiveTab('gym')}
+            className={`px-4 py-2.5 rounded whitespace-nowrap text-sm font-medium min-h-[44px] transition-colors ${
+              activeTab === 'gym' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            Gym
+          </button>
+          <button
             onClick={() => setActiveTab('settings')}
             className={`px-4 py-2.5 rounded whitespace-nowrap text-sm font-medium min-h-[44px] transition-colors ${
               activeTab === 'settings' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
@@ -223,6 +253,26 @@ const AuthenticatedApp: React.FC<{ user: any }> = ({ user }) => {
             {historyViewType === 'current_stock' && <CurrentStockReport />}
           </div>
         )}
+        {activeTab === 'gym' && (
+          <GymView
+            members={gymMembers}
+            membersSearchTerm={gymMembersSearchTerm}
+            onSearchMembers={applyGymMembersSearch}
+            onAddMember={addGymMember}
+            onUpdateMember={updateGymMember}
+            onDeleteMember={deleteGymMember}
+            checkins={gymCheckins}
+            activeCheckinsCount={gymActiveCheckins.length}
+            checkinsCurrentPage={gymCheckinsPage}
+            checkinsTotalPages={gymCheckinsTotalPages}
+            checkinsTotalCount={gymCheckinsTotalCount}
+            checkinsSearchTerm={gymCheckinsSearchTerm}
+            onSearchCheckins={applyGymCheckinsSearch}
+            onCheckinsPageChange={goToGymCheckinsPage}
+            onScanComplete={reloadGymCheckins}
+          />
+        )}
+
         {activeTab === 'settings' && (
           <SettingsView
             categories={categories}

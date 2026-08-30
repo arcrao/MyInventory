@@ -1,4 +1,4 @@
-import { Product, Category, Location, HistoryEntry, HistoryActionFilter, HistoryDateRangeFilter } from '../types';
+import { Product, Category, Location, HistoryEntry, HistoryActionFilter, HistoryDateRangeFilter, GymMember, GymMemberFormData, GymCheckin, GymScanResult } from '../types';
 import { supabase } from '../lib/supabase';
 
 export class StorageService {
@@ -884,6 +884,202 @@ export class StorageService {
       return data;
     } catch (error) {
       console.error('Error in stock-out transaction:', error);
+      throw error;
+    }
+  }
+
+  // Gym Members
+  static async getGymMembers(searchTerm?: string): Promise<GymMember[]> {
+    try {
+      let query = supabase
+        .from('gym_members')
+        .select('*')
+        .order('name', { ascending: true });
+
+      if (searchTerm && searchTerm.trim()) {
+        query = query.or(`name.ilike.%${searchTerm}%,member_code.ilike.%${searchTerm}%,phone.ilike.%${searchTerm}%`);
+      }
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+
+      return (data || []).map(item => ({
+        id: item.id,
+        memberCode: item.member_code,
+        name: item.name,
+        phone: item.phone || '',
+        membershipType: item.membership_type || '',
+        status: item.status as 'active' | 'inactive',
+        createdAt: item.created_at
+      }));
+    } catch (error) {
+      console.error('Error getting gym members:', error);
+      return [];
+    }
+  }
+
+  static async addGymMember(member: GymMemberFormData): Promise<GymMember> {
+    try {
+      const userId = await this.getUserId();
+      const { data, error } = await supabase
+        .from('gym_members')
+        .insert({
+          user_id: userId,
+          name: member.name,
+          phone: member.phone || null,
+          membership_type: member.membershipType || null,
+          status: member.status
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      return {
+        id: data.id,
+        memberCode: data.member_code,
+        name: data.name,
+        phone: data.phone || '',
+        membershipType: data.membership_type || '',
+        status: data.status,
+        createdAt: data.created_at
+      };
+    } catch (error) {
+      console.error('Error adding gym member:', error);
+      throw error;
+    }
+  }
+
+  static async updateGymMember(id: number, member: GymMemberFormData): Promise<void> {
+    try {
+      const { error } = await supabase
+        .from('gym_members')
+        .update({
+          name: member.name,
+          phone: member.phone || null,
+          membership_type: member.membershipType || null,
+          status: member.status
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error updating gym member:', error);
+      throw error;
+    }
+  }
+
+  static async deleteGymMember(id: number): Promise<void> {
+    try {
+      const { error } = await supabase
+        .from('gym_members')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error deleting gym member:', error);
+      throw error;
+    }
+  }
+
+  // Gym Check-Ins
+  static async getGymCheckins(page?: number, pageSize: number = 50, searchTerm?: string): Promise<GymCheckin[]> {
+    try {
+      let query = supabase
+        .from('gym_checkins')
+        .select('*')
+        .order('check_in_time', { ascending: false });
+
+      if (searchTerm && searchTerm.trim()) {
+        query = query.or(`member_name.ilike.%${searchTerm}%,member_code.ilike.%${searchTerm}%`);
+      }
+
+      if (page !== undefined && page >= 0) {
+        const from = page * pageSize;
+        const to = from + pageSize - 1;
+        query = query.range(from, to);
+      }
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+
+      return (data || []).map(item => ({
+        id: item.id,
+        memberId: item.member_id,
+        memberName: item.member_name,
+        memberCode: item.member_code,
+        checkInTime: item.check_in_time,
+        checkOutTime: item.check_out_time
+      }));
+    } catch (error) {
+      console.error('Error getting gym checkins:', error);
+      return [];
+    }
+  }
+
+  static async getGymCheckinsCount(searchTerm?: string): Promise<number> {
+    try {
+      let query = supabase
+        .from('gym_checkins')
+        .select('*', { count: 'exact', head: true });
+
+      if (searchTerm && searchTerm.trim()) {
+        query = query.or(`member_name.ilike.%${searchTerm}%,member_code.ilike.%${searchTerm}%`);
+      }
+
+      const { count, error } = await query;
+
+      if (error) throw error;
+      return count || 0;
+    } catch (error) {
+      console.error('Error getting gym checkins count:', error);
+      return 0;
+    }
+  }
+
+  // Currently checked-in members (open sessions, no check-out yet)
+  static async getActiveGymCheckins(): Promise<GymCheckin[]> {
+    try {
+      const { data, error } = await supabase
+        .from('gym_checkins')
+        .select('*')
+        .is('check_out_time', null)
+        .order('check_in_time', { ascending: false });
+
+      if (error) throw error;
+
+      return (data || []).map(item => ({
+        id: item.id,
+        memberId: item.member_id,
+        memberName: item.member_name,
+        memberCode: item.member_code,
+        checkInTime: item.check_in_time,
+        checkOutTime: item.check_out_time
+      }));
+    } catch (error) {
+      console.error('Error getting active gym checkins:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Scan a member's QR code and toggle their check-in/check-out state
+   * using an atomic transaction (row-locked to prevent double-scans).
+   */
+  static async scanGymQrCode(memberCode: string): Promise<GymScanResult> {
+    try {
+      const { data, error } = await supabase.rpc('gym_scan_checkin', {
+        p_member_code: memberCode
+      });
+
+      if (error) throw error;
+
+      return data;
+    } catch (error) {
+      console.error('Error in gym scan transaction:', error);
       throw error;
     }
   }
