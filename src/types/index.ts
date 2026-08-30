@@ -48,7 +48,8 @@ export interface HistoryFilters {
   searchTerm: string;
 }
 
-export type TabType = 'dashboard' | 'products' | 'history' | 'gym' | 'settings';
+export type ProductType = 'inventory' | 'gym';
+export type TabType = 'dashboard' | 'products' | 'history' | 'settings';
 
 export interface GymMember {
   id: number;

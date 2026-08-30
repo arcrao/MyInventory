@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Package, Dumbbell } from 'lucide-react';
 import { Header } from './components/Layout/Header';
 import { Dashboard } from './components/Dashboard/Dashboard';
 import { ProductsList } from './components/Products/ProductsList';
@@ -19,12 +20,13 @@ import { useHistory } from './hooks/useHistory';
 import { useGymMembers } from './hooks/useGymMembers';
 import { useGymCheckins } from './hooks/useGymCheckins';
 import { useGymRole } from './hooks/useGymRole';
-import { Product, TabType } from './types';
+import { Product, ProductType, TabType } from './types';
 
 // Separate component for authenticated app to ensure clean remount on auth changes
 type HistoryViewType = 'all' | 'timeline' | 'current_stock';
 
 const AuthenticatedApp: React.FC<{ user: any }> = ({ user }) => {
+  const [activeProduct, setActiveProduct] = useState<ProductType>('inventory');
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
   const [showProductForm, setShowProductForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -134,6 +136,7 @@ const AuthenticatedApp: React.FC<{ user: any }> = ({ user }) => {
 
   const handleViewProduct = (product: Product) => {
     setViewingProduct(product);
+    setActiveProduct('inventory');
     setActiveTab('products'); // Switch to products tab when viewing a product
   };
 
@@ -146,121 +149,152 @@ const AuthenticatedApp: React.FC<{ user: any }> = ({ user }) => {
       <Header />
 
       <div className="max-w-7xl mx-auto p-3 sm:p-4 md:p-6">
+        {/* Product Switcher - Inventory and Gym are separate products */}
         <div className="flex gap-2 mb-4 md:mb-6 overflow-x-auto pb-2 -mx-3 px-3 sm:mx-0 sm:px-0">
           <button
-            onClick={() => setActiveTab('dashboard')}
-            className={`px-4 py-2.5 rounded whitespace-nowrap text-sm font-medium min-h-[44px] transition-colors ${
-              activeTab === 'dashboard' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
+            onClick={() => setActiveProduct('inventory')}
+            className={`px-4 py-2.5 rounded-lg whitespace-nowrap text-sm font-semibold min-h-[44px] transition-colors flex items-center gap-2 ${
+              activeProduct === 'inventory' ? 'bg-gray-900 text-white' : 'bg-white text-gray-700 border-2 border-gray-200 hover:bg-gray-50'
             }`}
           >
-            Dashboard
-          </button>
-          <button
-            onClick={() => setActiveTab('products')}
-            className={`px-4 py-2.5 rounded whitespace-nowrap text-sm font-medium min-h-[44px] transition-colors ${
-              activeTab === 'products' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
-            }`}
-          >
-            Products
-          </button>
-          <button
-            onClick={() => setActiveTab('history')}
-            className={`px-4 py-2.5 rounded whitespace-nowrap text-sm font-medium min-h-[44px] transition-colors ${
-              activeTab === 'history' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
-            }`}
-          >
-            History
+            <Package className="w-4 h-4" />
+            Inventory
           </button>
           {!gymRoleLoading && isGymStaff && (
             <button
-              onClick={() => setActiveTab('gym')}
-              className={`px-4 py-2.5 rounded whitespace-nowrap text-sm font-medium min-h-[44px] transition-colors ${
-                activeTab === 'gym' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
+              onClick={() => setActiveProduct('gym')}
+              className={`px-4 py-2.5 rounded-lg whitespace-nowrap text-sm font-semibold min-h-[44px] transition-colors flex items-center gap-2 ${
+                activeProduct === 'gym' ? 'bg-gray-900 text-white' : 'bg-white text-gray-700 border-2 border-gray-200 hover:bg-gray-50'
               }`}
             >
+              <Dumbbell className="w-4 h-4" />
               Gym
             </button>
           )}
-          <button
-            onClick={() => setActiveTab('settings')}
-            className={`px-4 py-2.5 rounded whitespace-nowrap text-sm font-medium min-h-[44px] transition-colors ${
-              activeTab === 'settings' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
-            }`}
-          >
-            Settings
-          </button>
         </div>
 
-        {activeTab === 'dashboard' && (
-          <Dashboard
-            products={products}
-            categories={categories}
-            onViewProduct={handleViewProduct}
-          />
-        )}
-        {activeTab === 'products' && !viewingProduct && (
-          <ProductsList
-            products={products}
-            categories={categories}
-            locations={locations}
-            onAddProduct={handleAddProduct}
-            onEditProduct={handleEditProduct}
-            onDeleteProduct={deleteProduct}
-            onStockAdjust={handleStockAdjust}
-            onViewProduct={handleViewProduct}
-            onProductAdd={addProduct}
-            onReloadProducts={reloadProducts}
-            currentPage={currentPage}
-            totalPages={totalPages}
-            totalCount={totalCount}
-            onPageChange={goToPage}
-            currentFilters={filters}
-            onFilterChange={applyFilters}
-          />
-        )}
-        {activeTab === 'products' && viewingProduct && (
-          <ProductDetail
-            product={viewingProduct}
-            categories={categories}
-            locations={locations}
-            onBack={handleBackFromProductDetail}
-          />
-        )}
-        {activeTab === 'history' && (
-          <div>
-            {/* History View Type Toggle */}
-            <div className="flex gap-2 mb-4 flex-wrap">
-              {(['all', 'timeline', 'current_stock'] as HistoryViewType[]).map((type) => (
-                <button key={type}
-                  onClick={() => setHistoryViewType(type)}
-                  className={`px-4 py-2 rounded text-sm font-medium min-h-[40px] transition-colors ${
-                    historyViewType === type
-                      ? 'bg-blue-100 text-blue-700 border-2 border-blue-500'
-                      : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50'
-                  }`}
-                >
-                  {type === 'all' ? 'All History' : type === 'timeline' ? 'Stock Movement' : 'Current Stock'}
-                </button>
-              ))}
+        {activeProduct === 'inventory' && (
+          <>
+            <div className="flex gap-2 mb-4 md:mb-6 overflow-x-auto pb-2 -mx-3 px-3 sm:mx-0 sm:px-0">
+              <button
+                onClick={() => setActiveTab('dashboard')}
+                className={`px-4 py-2.5 rounded whitespace-nowrap text-sm font-medium min-h-[44px] transition-colors ${
+                  activeTab === 'dashboard' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                Dashboard
+              </button>
+              <button
+                onClick={() => setActiveTab('products')}
+                className={`px-4 py-2.5 rounded whitespace-nowrap text-sm font-medium min-h-[44px] transition-colors ${
+                  activeTab === 'products' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                Products
+              </button>
+              <button
+                onClick={() => setActiveTab('history')}
+                className={`px-4 py-2.5 rounded whitespace-nowrap text-sm font-medium min-h-[44px] transition-colors ${
+                  activeTab === 'history' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                History
+              </button>
+              <button
+                onClick={() => setActiveTab('settings')}
+                className={`px-4 py-2.5 rounded whitespace-nowrap text-sm font-medium min-h-[44px] transition-colors ${
+                  activeTab === 'settings' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                Settings
+              </button>
             </div>
 
-            {historyViewType === 'all' && (
-              <HistoryView
-                history={history}
+            {activeTab === 'dashboard' && (
+              <Dashboard
                 products={products}
-                currentPage={historyPage}
-                totalPages={historyTotalPages}
-                totalCount={historyTotalCount}
-                filters={historyFilters}
-                onFilterChange={applyHistoryFilters}
-                onPageChange={goToHistoryPage}
+                categories={categories}
+                onViewProduct={handleViewProduct}
               />
             )}
-            {historyViewType === 'timeline' && <ProductTimelineReport />}
-            {historyViewType === 'current_stock' && <CurrentStockReport />}
-          </div>
+            {activeTab === 'products' && !viewingProduct && (
+              <ProductsList
+                products={products}
+                categories={categories}
+                locations={locations}
+                onAddProduct={handleAddProduct}
+                onEditProduct={handleEditProduct}
+                onDeleteProduct={deleteProduct}
+                onStockAdjust={handleStockAdjust}
+                onViewProduct={handleViewProduct}
+                onProductAdd={addProduct}
+                onReloadProducts={reloadProducts}
+                currentPage={currentPage}
+                totalPages={totalPages}
+                totalCount={totalCount}
+                onPageChange={goToPage}
+                currentFilters={filters}
+                onFilterChange={applyFilters}
+              />
+            )}
+            {activeTab === 'products' && viewingProduct && (
+              <ProductDetail
+                product={viewingProduct}
+                categories={categories}
+                locations={locations}
+                onBack={handleBackFromProductDetail}
+              />
+            )}
+            {activeTab === 'history' && (
+              <div>
+                {/* History View Type Toggle */}
+                <div className="flex gap-2 mb-4 flex-wrap">
+                  {(['all', 'timeline', 'current_stock'] as HistoryViewType[]).map((type) => (
+                    <button key={type}
+                      onClick={() => setHistoryViewType(type)}
+                      className={`px-4 py-2 rounded text-sm font-medium min-h-[40px] transition-colors ${
+                        historyViewType === type
+                          ? 'bg-blue-100 text-blue-700 border-2 border-blue-500'
+                          : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      {type === 'all' ? 'All History' : type === 'timeline' ? 'Stock Movement' : 'Current Stock'}
+                    </button>
+                  ))}
+                </div>
+
+                {historyViewType === 'all' && (
+                  <HistoryView
+                    history={history}
+                    products={products}
+                    currentPage={historyPage}
+                    totalPages={historyTotalPages}
+                    totalCount={historyTotalCount}
+                    filters={historyFilters}
+                    onFilterChange={applyHistoryFilters}
+                    onPageChange={goToHistoryPage}
+                  />
+                )}
+                {historyViewType === 'timeline' && <ProductTimelineReport />}
+                {historyViewType === 'current_stock' && <CurrentStockReport />}
+              </div>
+            )}
+
+            {activeTab === 'settings' && (
+              <SettingsView
+                categories={categories}
+                locations={locations}
+                products={products}
+                onAddCategory={addCategory}
+                onDeleteCategory={deleteCategory}
+                onAddLocation={addLocation}
+                onDeleteLocation={deleteLocation}
+              />
+            )}
+          </>
         )}
-        {activeTab === 'gym' && isGymStaff && (
+
+        {activeProduct === 'gym' && isGymStaff && (
           <GymView
             isGymAdmin={isGymAdmin}
             gymRoleLoading={gymRoleLoading}
@@ -279,18 +313,6 @@ const AuthenticatedApp: React.FC<{ user: any }> = ({ user }) => {
             onSearchCheckins={applyGymCheckinsSearch}
             onCheckinsPageChange={goToGymCheckinsPage}
             onScanComplete={reloadGymCheckins}
-          />
-        )}
-
-        {activeTab === 'settings' && (
-          <SettingsView
-            categories={categories}
-            locations={locations}
-            products={products}
-            onAddCategory={addCategory}
-            onDeleteCategory={deleteCategory}
-            onAddLocation={addLocation}
-            onDeleteLocation={deleteLocation}
           />
         )}
 
