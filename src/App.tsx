@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Package, Dumbbell } from 'lucide-react';
 import { Header } from './components/Layout/Header';
 import { Dashboard } from './components/Dashboard/Dashboard';
@@ -20,6 +20,7 @@ import { useHistory } from './hooks/useHistory';
 import { useGymMembers } from './hooks/useGymMembers';
 import { useGymCheckins } from './hooks/useGymCheckins';
 import { useGymRole } from './hooks/useGymRole';
+import { useInventoryRole } from './hooks/useInventoryRole';
 import { Product, ProductType, TabType } from './types';
 
 // Separate component for authenticated app to ensure clean remount on auth changes
@@ -35,6 +36,22 @@ const AuthenticatedApp: React.FC<{ user: any }> = ({ user }) => {
   const [viewingProduct, setViewingProduct] = useState<Product | null>(null);
   const [historyViewType, setHistoryViewType] = useState<HistoryViewType>('all');
 
+  const { hasInventoryAccess, loading: inventoryRoleLoading } = useInventoryRole(user);
+  const { isGymStaff, isGymAdmin, loading: gymRoleLoading } = useGymRole(user);
+  // Inventory and Gym data are independent products - each only fetches
+  // once we know the signed-in user actually has access to it.
+  const inventoryUser = hasInventoryAccess ? user : null;
+  const gymUser = isGymStaff ? user : null;
+
+  // Once both role checks resolve, land on whichever product the user
+  // actually has access to (defaults to Inventory while loading).
+  useEffect(() => {
+    if (inventoryRoleLoading || gymRoleLoading) return;
+    if (!hasInventoryAccess && isGymStaff) {
+      setActiveProduct('gym');
+    }
+  }, [inventoryRoleLoading, gymRoleLoading, hasInventoryAccess, isGymStaff]);
+
   const {
     history,
     currentPage: historyPage,
@@ -43,7 +60,7 @@ const AuthenticatedApp: React.FC<{ user: any }> = ({ user }) => {
     filters: historyFilters,
     applyFilters: applyHistoryFilters,
     goToPage: goToHistoryPage,
-  } = useHistory(user);
+  } = useHistory(inventoryUser);
   const {
     products,
     addProduct,
@@ -58,13 +75,9 @@ const AuthenticatedApp: React.FC<{ user: any }> = ({ user }) => {
     filters,
     applyFilters,
     reloadProducts,
-  } = useProducts(user);
-  const { categories, addCategory, deleteCategory } = useCategories(user);
-  const { locations, addLocation, deleteLocation } = useLocations(user);
-  const { isGymStaff, isGymAdmin, loading: gymRoleLoading } = useGymRole(user);
-  // Gym data is completely separate from Products access - only fetch it
-  // once we know the signed-in user actually has Gym access.
-  const gymUser = isGymStaff ? user : null;
+  } = useProducts(inventoryUser);
+  const { categories, addCategory, deleteCategory } = useCategories(inventoryUser);
+  const { locations, addLocation, deleteLocation } = useLocations(inventoryUser);
   const {
     members: gymMembers,
     searchTerm: gymMembersSearchTerm,
@@ -144,6 +157,25 @@ const AuthenticatedApp: React.FC<{ user: any }> = ({ user }) => {
     setViewingProduct(null);
   };
 
+  const rolesLoading = inventoryRoleLoading || gymRoleLoading;
+
+  // Neither product granted access yet - nothing to switch between.
+  if (!rolesLoading && !hasInventoryAccess && !isGymStaff) {
+    return (
+      <div className="min-h-screen bg-gray-100">
+        <Header />
+        <div className="max-w-2xl mx-auto p-3 sm:p-4 md:p-6">
+          <div className="bg-white border rounded-lg p-8 mt-8 text-center">
+            <h2 className="text-xl font-bold mb-2">No Access Yet</h2>
+            <p className="text-gray-600">
+              Your account isn't assigned to Inventory or Gym yet. Contact an administrator to get access.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-100">
       <Header />
@@ -151,15 +183,17 @@ const AuthenticatedApp: React.FC<{ user: any }> = ({ user }) => {
       <div className="max-w-7xl mx-auto p-3 sm:p-4 md:p-6">
         {/* Product Switcher - Inventory and Gym are separate products */}
         <div className="flex gap-2 mb-4 md:mb-6 overflow-x-auto pb-2 -mx-3 px-3 sm:mx-0 sm:px-0">
-          <button
-            onClick={() => setActiveProduct('inventory')}
-            className={`px-4 py-2.5 rounded-lg whitespace-nowrap text-sm font-semibold min-h-[44px] transition-colors flex items-center gap-2 ${
-              activeProduct === 'inventory' ? 'bg-gray-900 text-white' : 'bg-white text-gray-700 border-2 border-gray-200 hover:bg-gray-50'
-            }`}
-          >
-            <Package className="w-4 h-4" />
-            Inventory
-          </button>
+          {!inventoryRoleLoading && hasInventoryAccess && (
+            <button
+              onClick={() => setActiveProduct('inventory')}
+              className={`px-4 py-2.5 rounded-lg whitespace-nowrap text-sm font-semibold min-h-[44px] transition-colors flex items-center gap-2 ${
+                activeProduct === 'inventory' ? 'bg-gray-900 text-white' : 'bg-white text-gray-700 border-2 border-gray-200 hover:bg-gray-50'
+              }`}
+            >
+              <Package className="w-4 h-4" />
+              Inventory
+            </button>
+          )}
           {!gymRoleLoading && isGymStaff && (
             <button
               onClick={() => setActiveProduct('gym')}
@@ -173,7 +207,7 @@ const AuthenticatedApp: React.FC<{ user: any }> = ({ user }) => {
           )}
         </div>
 
-        {activeProduct === 'inventory' && (
+        {activeProduct === 'inventory' && hasInventoryAccess && (
           <>
             <div className="flex gap-2 mb-4 md:mb-6 overflow-x-auto pb-2 -mx-3 px-3 sm:mx-0 sm:px-0">
               <button

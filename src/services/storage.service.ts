@@ -1148,4 +1148,26 @@ export class StorageService {
       throw error;
     }
   }
+
+  // Inventory Access (user_roles) - does the current user have ANY
+  // inventory role at all (view-only 'user', 'admin', or 'super_admin')?
+  // Independent of Gym access, same as gym_roles is independent of this.
+  static async hasInventoryAccess(): Promise<boolean> {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return false;
+
+      const { data, error } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (error) throw error;
+      return !!data;
+    } catch (error) {
+      console.error('Error checking inventory access:', error);
+      return false;
+    }
+  }
 }
